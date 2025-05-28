@@ -8,7 +8,7 @@ function parseText(text, FIELD_PATTERNS, TAX_CODES) {
   for (const line of lines) {
     // Check field patterns
     for (const { key, regex } of FIELD_PATTERNS) {
-      if (!data[key]) {
+      if (!data.hasOwnProperty(key)) {
         const match = line.match(regex);
         if (match) {
           const value = match[1].trim();
@@ -33,6 +33,7 @@ function parseText(text, FIELD_PATTERNS, TAX_CODES) {
     }
   }
 
+  // החזר רק שדות שהופיעו בטקסט (גם אם ערכם ריק)
   return data;
 }
 

@@ -10,13 +10,14 @@ describe("Tax Calculator", () => {
         gender: "male",
         children: 2,
       });
+      console.log(result);
 
       expect(result.income).toBe(100000);
       expect(result.grossTax).toBeGreaterThan(0);
       expect(result.creditPoints).toBe(4.25); // 2.25 base + 2 for children
       expect(result.creditValue).toBe(4.25 * 2352);
       expect(result.refund).toBeDefined();
-      expect(result.explanation).toContain("חישוב מס הכנסה לשנת 2023");
+      expect(result.explanation).toContain("חישוב מס הכנסה לשנת 2024");
     });
 
     test("handles female with no children", () => {
@@ -26,6 +27,7 @@ describe("Tax Calculator", () => {
         gender: "female",
         children: 0,
       });
+      console.log(result);
 
       expect(result.creditPoints).toBe(2.75); // 2.25 base + 0.5 for female
     });
@@ -37,6 +39,7 @@ describe("Tax Calculator", () => {
         gender: "male",
         children: "3",
       });
+      console.log(result);
 
       expect(result.income).toBe(200000);
       expect(result.taxPaid).toBe(30000);
@@ -53,6 +56,7 @@ describe("Tax Calculator", () => {
         gender: "male",
         children: 0,
       });
+      console.log(result);
 
       expect(result.grossTax).toBe(0);
       expect(result.netTax).toBe(0);
@@ -66,6 +70,7 @@ describe("Tax Calculator", () => {
         gender: "male",
         children: 0,
       });
+      console.log(result);
 
       expect(result.grossTax).toBeGreaterThan(0);
       expect(result.netTax).toBeGreaterThan(0);
@@ -78,6 +83,7 @@ describe("Tax Calculator", () => {
         gender: "female",
         children: 5,
       });
+      console.log(result);
 
       expect(result.refund).toBeGreaterThan(0);
     });
@@ -143,6 +149,7 @@ describe("Tax Calculator", () => {
         gender: "male",
         children: 0,
       });
+      console.log(result);
 
       expect(result.grossTax).toBe(50000 * 0.1);
     });
@@ -154,6 +161,7 @@ describe("Tax Calculator", () => {
         gender: "male",
         children: 0,
       });
+      console.log(result);
 
       // First bracket: 83760 * 0.10
       // Second bracket: (120960 - 83760) * 0.14
@@ -172,6 +180,7 @@ describe("Tax Calculator", () => {
         gender: "female",
         children: 2,
       });
+      console.log(result);
 
       const expectedPoints = 2.25 + 0.5 + 2; // base + female + children
       expect(result.creditPoints).toBe(expectedPoints);

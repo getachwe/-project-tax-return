@@ -2,9 +2,9 @@ const FIELD_PATTERNS = [
   // Personal Information
   {
     key: "employeeName",
-    regex: /(?:שם\s*העוב[ד|ת]|שם\s*העובד)[\s:|\-]+([^\n]+?)(?:\s*$|\s*[,;])/,
+    regex: /(?:שם\s*העוב[ד|ת]|שם\s*העובד)[\s:|\-]+([^\n]*?)(?:\s*$|\s*[,;])/,
   },
-  { key: "employeeId", regex: /(?:תעודת\s*זהות|ת\.ז\.)[\s:|\-]+([\d\-]+)/ },
+  { key: "employeeId", regex: /(?:תעודת\s*זהות|ת\.ז\.)[\s:|\-]+([^\n]*)/ },
   {
     key: "birthDate",
     regex:
@@ -12,7 +12,7 @@ const FIELD_PATTERNS = [
   },
   {
     key: "address",
-    regex: /(?:כתובת|כתובת\s*העובד)[\s:|\-]+([^\n]+?)(?:\s*$|\s*[,;])/,
+    regex: /(?:כתובת|כתובת\s*העובד)[\s:|\-]+([^\n]+?)(?:\s*$)/,
   },
   {
     key: "maritalStatus",
@@ -24,7 +24,7 @@ const FIELD_PATTERNS = [
   },
   { key: "gender", regex: /(?:מין|מגדר)[\s:|\-]+([^\n]+?)(?:\s*$|\s*[,;])/ },
   { key: "phoneNumber", regex: /(?:טלפון|מספר\s*טלפון)[\s:|\-]+([\d\-]+)/ },
-  { key: "email", regex: /(?:דוא"ל|אימייל)[\s:|\-]+([\w\.\-]+@[\w\.\-]+)/ },
+  { key: "email", regex: /(?:דוא"ל|אימייל)[\s:|\-]+([^\n]*)/ },
 
   // Employment Information
   {
@@ -120,7 +120,7 @@ const FIELD_PATTERNS = [
   { key: "bankBranch", regex: /(?:סניף\s*בנק|מספר\s*סניף)[\s:|\-]+([\d\-]+)/ },
   {
     key: "bankName",
-    regex: /(?:שם\s*הבנק|בנק)[\s:|\-]+([^\n]+?)(?:\s*$|\s*[,;])/,
+    regex: /(?:שם\s*הבנק|בנק)[\s:|\-]+([\u0590-\u05FF][^\n]*)/,
   },
   {
     key: "managerName",

@@ -123,6 +123,7 @@ describe("extract106", () => {
     const buffer = Buffer.from(sampleData);
 
     const result = await extract106(filePath, "application/pdf");
+    console.log(result);
 
     expect(result.success).toBe(true);
     expect(result.data).toEqual({
@@ -220,6 +221,7 @@ describe("extract106", () => {
     const filePath = path.join(__dirname, "test-data", "sample-106.txt");
 
     const result = await extract106(filePath, "application/pdf");
+    console.log(result);
 
     expect(result.success).toBe(true);
     expect(result.data).toEqual({
@@ -274,9 +276,13 @@ describe("extract106", () => {
   });
 
   test("should handle invalid file path", async () => {
+    const originalError = console.error;
+    console.error = jest.fn();
     const result = await extract106("non-existent-file.pdf", "application/pdf");
+    console.log(result);
     expect(result.success).toBe(false);
     expect(result.error).toBeDefined();
+    console.error = originalError;
   });
 
   test("should handle malformed data", async () => {
@@ -290,6 +296,7 @@ describe("extract106", () => {
     const filePath = path.join(__dirname, "test-data", "sample-106.txt");
 
     const result = await extract106(filePath, "application/pdf");
+    console.log(result);
 
     expect(result.success).toBe(true);
     expect(result.data).toEqual({
@@ -314,6 +321,7 @@ describe("extract106", () => {
     const filePath = path.join(__dirname, "test-data", "sample-106.txt");
 
     const result = await extract106(filePath, "application/pdf");
+    console.log(result);
 
     expect(result.success).toBe(true);
     expect(result.data).toEqual({
@@ -321,6 +329,69 @@ describe("extract106", () => {
       taxPaid: 20000.5,
       taxCredits: 5000.0,
     });
+  });
+
+  test("should handle empty file", async () => {
+    createTestData("");
+    const filePath = path.join(__dirname, "test-data", "sample-106.txt");
+    const result = await extract106(filePath, "application/pdf");
+    expect(result.success).toBe(true);
+    expect(result.data).toEqual({});
+    expect(result.missingFields.length).toBeGreaterThan(0);
+  });
+
+  test("should handle duplicate fields", async () => {
+    const sampleData = `
+      שם העובד: ישראל ישראלי
+      תעודת זהות: 123456789
+      שם העובד: משה כהן
+    `;
+    createTestData(sampleData);
+    const filePath = path.join(__dirname, "test-data", "sample-106.txt");
+    const result = await extract106(filePath, "application/pdf");
+    // מצופה שהערך הראשון יישמר
+    expect(result.data.employeeName).toBe("ישראל ישראלי");
+  });
+
+  test("should handle unrelated text", async () => {
+    const sampleData = `
+      זהו טקסט אקראי לחלוטין ללא שדות טופס.
+      עוד שורה לא קשורה.
+    `;
+    createTestData(sampleData);
+    const filePath = path.join(__dirname, "test-data", "sample-106.txt");
+    const result = await extract106(filePath, "application/pdf");
+    expect(result.success).toBe(true);
+    expect(Object.keys(result.data)).toHaveLength(0);
+    expect(result.missingFields.length).toBeGreaterThan(0);
+  });
+
+  test("should handle invalid values (date, phone, email)", async () => {
+    const sampleData = `
+      תאריך לידה: 99/99/9999
+      טלפון: 123
+      דוא"ל: not-an-email
+    `;
+    createTestData(sampleData);
+    const filePath = path.join(__dirname, "test-data", "sample-106.txt");
+    const result = await extract106(filePath, "application/pdf");
+    expect(result.data.birthDate).toBe("99/99/9999");
+    expect(result.data.phoneNumber).toBe("123");
+    expect(result.data.email).toBe("not-an-email");
+  });
+
+  test("should handle numbers with comma and dot", async () => {
+    const sampleData = `
+      קודי מס:
+      158 1,000.50
+      244 2.000,75
+    `;
+    createTestData(sampleData);
+    const filePath = path.join(__dirname, "test-data", "sample-106.txt");
+    const result = await extract106(filePath, "application/pdf");
+    // income: 1000.5, taxPaid: 2000.75 (בהנחה שה-parser מתקן פורמטים)
+    expect(result.data.income).toBeGreaterThan(0);
+    expect(result.data.taxPaid).toBeGreaterThan(0);
   });
 });
 

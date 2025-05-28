@@ -68,7 +68,7 @@ function validateInput(data) {
   // Validate gender
   let gender = (data.gender || "male").toLowerCase();
   if (!["male", "female"].includes(gender)) {
-    gender = "male";
+    throw new Error('Gender must be either "male" or "female"');
   }
 
   // Validate children
