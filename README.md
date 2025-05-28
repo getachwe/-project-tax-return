@@ -1,53 +1,53 @@
 # Hebrew Tax Refund Calculator
 
-מערכת מחשבון החזרי מס - פרויקט Fullstack מודרני הכולל פרונטנד (React + Vite + Tailwind) ובקאנד (Node.js + Express).
-המערכת מאפשרת חישוב החזר מס, העלאת מסמכים, הפקת PDF, וממשק משתמש נוח בעברית.
+A modern fullstack system for tax refund calculation, including a React (Vite + Tailwind) frontend and a Node.js (Express) backend.  
+The system enables tax refund calculations, document uploads, PDF generation, and a user-friendly Hebrew interface.
 
 ---
 
-## תוכן עניינים
+## Table of Contents
 
-- [תיאור כללי](#תיאור-כללי)
-- [טכנולוגיות עיקריות](#טכנולוגיות-עיקריות)
-- [מבנה הפרויקט](#מבנה-הפרויקט)
-- [התקנה והרצה](#התקנה-והרצה)
-- [קבצים רגישים](#קבצים-רגישים)
-- [דוגמה לשימוש](#דוגמה-לשימוש)
-- [תרומות](#תרומות)
-
----
-
-## תיאור כללי
-
-המערכת כוללת:
-
-- **פרונטנד**: אפליקציית React מודרנית עם Tailwind CSS, טפסים, ולוגיקה מתקדמת.
-- **בקאנד**: שרת Express שמבצע חישובי מס, הפקת PDF, עיבוד קבצים, ועוד.
-- **העלאת מסמכים**: תמיכה ב-upload, OCR, ויצירת דוחות PDF.
-- **UI בעברית**: ממשק RTL, נגישות, ועיצוב מודרני.
+- [Overview](#overview)
+- [Main Technologies](#main-technologies)
+- [Project Structure](#project-structure)
+- [Installation & Running](#installation--running)
+- [Sensitive Files](#sensitive-files)
+- [Usage Example](#usage-example)
+- [Contributing](#contributing)
 
 ---
 
-## טכנולוגיות עיקריות
+## Overview
+
+The system includes:
+
+- **Frontend**: Modern React app with Tailwind CSS, advanced forms, and business logic.
+- **Backend**: Express server for tax calculations, PDF generation, file processing, and more.
+- **Document Upload**: Supports file upload, OCR, and PDF report generation.
+- **Hebrew UI**: RTL interface, accessibility, and modern design.
+
+---
+
+## Main Technologies
 
 - React 18, Vite, TypeScript, Tailwind CSS, ShadCN/UI
 - Node.js, Express, Multer, Puppeteer, Tesseract.js, PDFKit, PDFMake
-- ESLint, Zod, React Hook Form, ועוד
+- ESLint, Zod, React Hook Form, and more
 
 ---
 
-## מבנה הפרויקט
+## Project Structure
 
 ```
 project-tax-return/
 │
-├── project/      # קוד הפרונטנד (React)
+├── project/      # Frontend (React)
 │   ├── src/
 │   ├── public/
 │   ├── index.html
 │   └── ...
 │
-├── backend/      # קוד הבקאנד (Node.js/Express)
+├── backend/      # Backend (Node.js/Express)
 │   ├── server.js
 │   ├── pdfGenerator.js
 │   ├── ...
@@ -59,16 +59,16 @@ project-tax-return/
 
 ---
 
-## התקנה והרצה
+## Installation & Running
 
-### דרישות מוקדמות
+### Prerequisites
 
-- Node.js (מומלץ 18+)
+- Node.js (recommended 18+)
 - npm
 
-### התקנה
+### Installation
 
-1. התקנת תלויות לפרונטנד ולבקאנד:
+1. Install dependencies for both frontend and backend:
 
    ```bash
    cd project
@@ -78,43 +78,43 @@ project-tax-return/
    cd ..
    ```
 
-2. יצירת קבצי סביבה (אם צריך):
-   - `project/.env` - משתני סביבה לפרונטנד (למשל VITE_API_URL)
-   - `backend/.env` - משתני סביבה לבקאנד (למשל DB_CONNECTION_STRING, API_KEY)
+2. Create environment files if needed:
+   - `project/.env` - Frontend environment variables (e.g. VITE_API_URL)
+   - `backend/.env` - Backend environment variables (e.g. DB_CONNECTION_STRING, API_KEY)
 
-### הרצה בפיתוח (Development)
+### Running in Development
 
-1. חזור לשורש הפרויקט:
+1. Go to the project root:
 
    ```bash
    cd project-tax-return
    ```
 
-2. הרץ את שני השרתים במקביל:
+2. Start both servers in parallel:
 
    ```bash
    cd project
    npm run start:all
    ```
 
-   או ידנית:
+   Or manually:
 
    ```bash
-   # טרמינל 1
+   # Terminal 1
    cd project
    npm run dev
 
-   # טרמינל 2
+   # Terminal 2
    cd backend
    npm start
    ```
 
-3. היישום יהיה זמין בכתובת:
+3. The app will be available at:
    ```
    http://localhost:5173
    ```
 
-### בניית פרונטנד לפרודקשן
+### Building Frontend for Production
 
 ```bash
 cd project
@@ -123,22 +123,22 @@ npm run build
 
 ---
 
-## קבצים רגישים
+## Sensitive Files
 
-- קבצי ‎.env‎, ‎node_modules‎, ‎uploads‎, ‎temp‎, ‎pdfs‎, ‎dist‎, קבצי לוגים, ותיקיות מערכת - מוחרגים אוטומטית ולא עולים ל-GitHub.
-- אין להעלות מפתחות API, סיסמאות, או מידע רגיש אחר.
-
----
-
-## דוגמה לשימוש
-
-- מלא את הטופס עם נתוני ההכנסה והמשפחה.
-- העלה מסמכים רלוונטיים (טופס 106, קבלות).
-- קבל חישוב החזר מס, הורד דוח PDF, או שלח במייל.
+- Files such as `.env`, `node_modules`, `uploads`, `temp`, `pdfs`, `dist`, log files, and IDE/system folders are automatically excluded and not pushed to GitHub.
+- Do not commit API keys, passwords, or any other sensitive information.
 
 ---
 
-## תרומות
+## Usage Example
 
-נשמח לכל תרומה, פידבק, או Pull Request!
-לשאלות, פנה אלינו דרך Issues ברפוזיטורי.
+- Fill out the form with your income and family details.
+- Upload relevant documents (Form 106, receipts).
+- Get your tax refund calculation, download a PDF report, or send it by email.
+
+---
+
+## Contributing
+
+We welcome any contributions, feedback, or pull requests!  
+For questions, please open an issue in the repository.
