@@ -1,0 +1,19 @@
+{
+  "name": "project-tax-return",
+  "version": "1.0.0",
+  "description": "Tax return processing system",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
+  },
+  "dependencies": {
+    "pdf-parse": "^1.1.1",
+    "pdfkit": "^0.17.1",
+    "tesseract.js": "^4.1.1"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  }
+}
