@@ -1,242 +1,235 @@
-import React from "react";
-import { useForm, SubmitHandler } from "react-hook-form";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowRight, ArrowLeft } from "lucide-react";
+import React, { useMemo } from "react";
+import { Dialog } from "@headlessui/react";
+import { AlertCircle } from "lucide-react";
 import { useTaxCalculator } from "../context/TaxCalculatorContext";
+import {
+  FIELD_LABELS,
+  FIELD_TOOLTIPS,
+  MARITAL_OPTIONS,
+  GENDER_OPTIONS,
+  EMPLOYMENT_OPTIONS,
+} from "../constants/fields";
+import { DynamicForm, DynamicFormField } from "./DynamicForm";
 
-// Form validation schema
-const formSchema = z.object({
-  maritalStatus: z.enum(["single", "married", "divorced", "widowed"], {
-    required_error: "יש לבחור מצב משפחתי",
-  }),
-  income: z.number().min(1, "הכנסה חייבת להיות מספר חיובי"),
-  taxPaid: z.number().min(0, "מס ששולם לא יכול להיות מספר שלילי"),
-  taxCredits: z.number().min(0, "נקודות זיכוי לא יכולות להיות מספר שלילי"),
-  children: z.number().min(0, "מספר ילדים לא יכול להיות שלילי"),
-  academicDegree: z.boolean().optional(),
-  newImmigrant: z.boolean().optional(),
-  livingInPeriphery: z.boolean().optional(),
-});
+const EXTRA_CHECKBOXES = [
+  {
+    id: "academicDegree",
+    label: "בעל/ת תואר אקדמי (יש לי זכאות לנקודת זיכוי אקדמית)",
+  },
+  {
+    id: "newImmigrant",
+    label: "עולה חדש/ה (עליתי לישראל ב-3.5 השנים האחרונות)",
+  },
+  {
+    id: "livingInPeriphery",
+    label: "תושב/ת פריפריה (ישוב המזכה בהטבת מס)",
+  },
+];
 
-type FormData = z.infer<typeof formSchema>;
+const getFieldType = (key: string): DynamicFormField["type"] => {
+  if (
+    [
+      "income",
+      "taxPaid",
+      "children",
+      "additionalIncome",
+      "taxYear",
+      "oldAgeAllowance",
+      "disabilityPercent",
+      "yearsSinceAliyah",
+      "creditPoints",
+      "childAllowance",
+      "disabilityAllowance",
+    ].includes(key)
+  )
+    return "number";
+  if (["birthDate", "workStartDate", "workEndDate"].includes(key))
+    return "date";
+  if (["maritalStatus", "gender", "employmentType"].includes(key))
+    return "select";
+  if (["isArmyService", "isNationalService"].includes(key)) return "checkbox";
+  return "text";
+};
+
+const getOptions = (key: string) => {
+  if (key === "maritalStatus") return MARITAL_OPTIONS;
+  if (key === "gender") return GENDER_OPTIONS;
+  if (key === "employmentType") return EMPLOYMENT_OPTIONS;
+  return undefined;
+};
 
 export const ManualForm: React.FC = () => {
   const { taxData, setTaxData, goToNextStep, goToPreviousStep } =
     useTaxCalculator();
-
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<FormData>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      maritalStatus: (["single", "married", "divorced", "widowed"].includes(
-        taxData.maritalStatus as string
-      )
-        ? taxData.maritalStatus
-        : "single") as "single" | "married" | "divorced" | "widowed",
-      income: taxData.income,
-      taxPaid: taxData.taxPaid,
-      taxCredits: taxData.taxCredits,
-      children: 0,
-      academicDegree: false,
-      newImmigrant: false,
-      livingInPeriphery: false,
-    },
+  const [extra, setExtra] = React.useState({
+    academicDegree: !!taxData.academicDegree,
+    newImmigrant: !!taxData.newImmigrant,
+    livingInPeriphery: !!taxData.livingInPeriphery,
   });
+  const [showSubmitError, setShowSubmitError] = React.useState(false);
 
-  const onSubmit: SubmitHandler<FormData> = (data) => {
-    // Calculate additional tax credits
-    let additionalCredits = 0;
+  const fields: DynamicFormField[] = useMemo(
+    () =>
+      Object.entries(FIELD_LABELS).map(([key, label]) => ({
+        id: key,
+        label,
+        type: getFieldType(key),
+        tooltip: FIELD_TOOLTIPS[key],
+        options: getOptions(key),
+        required: ["income", "taxPaid", "taxYear", "maritalStatus"].includes(
+          key
+        ),
+        readOnly: key === "taxYear" && taxData.hasFormData,
+        min: [
+          "income",
+          "taxPaid",
+          "taxYear",
+          "children",
+          "additionalIncome",
+          "oldAgeAllowance",
+          "childAllowance",
+          "disabilityAllowance",
+        ].includes(key)
+          ? 0
+          : undefined,
+        max: key === "taxYear" ? new Date().getFullYear() : undefined,
+      })),
+    [taxData.hasFormData]
+  );
 
-    // Children credits: 1 point for each child under 18
-    additionalCredits += data.children * 1;
+  const values = { ...taxData, ...extra };
 
-    // Academic degree: 0.25 points for first degree
-    if (data.academicDegree) additionalCredits += 0.25;
+  const handleChange = (id: string, value: string | number | boolean) => {
+    setShowSubmitError(false);
+    if (id in extra) {
+      setExtra((prev) => ({ ...prev, [id]: value }));
+    } else {
+      setTaxData({ ...taxData, [id]: value });
+    }
+  };
 
-    // New immigrant: 3 points for first year, 2 for second, 1 for third
-    if (data.newImmigrant) additionalCredits += 3;
-
-    // Living in periphery: 0.5 points
-    if (data.livingInPeriphery) additionalCredits += 0.5;
-
-    const totalTaxCredits = data.taxCredits + additionalCredits;
-
-    setTaxData({
-      ...taxData,
-      maritalStatus: data.maritalStatus,
-      income: data.income,
-      taxPaid: data.taxPaid,
-      taxCredits: totalTaxCredits,
-      children: data.children,
-      academicDegree: data.academicDegree,
-      newImmigrant: data.newImmigrant,
-      livingInPeriphery: data.livingInPeriphery,
-    });
-
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isFormValid) {
+      setShowSubmitError(true);
+      return;
+    }
+    setTaxData({ ...taxData, ...extra });
     goToNextStep();
   };
 
+  // Simple error simulation: required fields must not be empty
+  const errors: Record<string, string> = {};
+  const valuesRecord = values as Record<string, unknown>;
+  fields.forEach((f) => {
+    if (f.required && !valuesRecord[f.id]) {
+      errors[f.id] = "שדה חובה";
+    }
+  });
+
+  const isFormValid = Object.keys(errors).length === 0;
+
+  // Find missing required fields for modal
+  const missingFields = fields.filter((f) => f.required && !valuesRecord[f.id]);
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-bold text-gray-900 mb-2">השלמת נתונים</h2>
-        <p className="text-gray-600">
-          {taxData.hasFormData
-            ? "הנתונים הבאים חולצו מהטופס שהעלית. אנא בדוק ותקן במידת הצורך."
-            : "אנא הזן את הנתונים הבאים כדי שנוכל לחשב את החזר המס האפשרי שלך."}
-        </p>
-      </div>
-
-      <form
-        onSubmit={handleSubmit(onSubmit as SubmitHandler<FormData>)}
-        className="space-y-4"
+    <>
+      {/* Modal for submit error */}
+      <Dialog
+        open={showSubmitError && !isFormValid}
+        onClose={() => setShowSubmitError(false)}
+        className="relative z-50"
       >
-        <div className="mb-4">
-          <label htmlFor="maritalStatus" className="form-label">
-            מצב משפחתי
-          </label>
-          <select
-            id="maritalStatus"
-            className="input-field"
-            {...register("maritalStatus", { required: true })}
-          >
-            <option value="">בחר/י...</option>
-            <option value="single">רווק/ה</option>
-            <option value="married">נשוי/אה</option>
-            <option value="divorced">גרוש/ה</option>
-            <option value="widowed">אלמן/ה</option>
-          </select>
-          {errors.maritalStatus && (
-            <p className="error-text">{errors.maritalStatus.message}</p>
-          )}
+        <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
+        <div className="fixed inset-0 flex items-center justify-center p-4">
+          <Dialog.Panel className="w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl border border-gray-100">
+            <Dialog.Title className="text-xl font-bold mb-4 text-center text-red-700 flex flex-col items-center gap-2">
+              <AlertCircle className="w-8 h-8 text-red-500 mb-1" />
+              לא ניתן להמשיך לשלב הבא
+            </Dialog.Title>
+            <div className="text-gray-700 text-center mb-4">
+              יש למלא את כל השדות החיוניים לפני שניתן להמשיך. שדות חובה מסומנים
+              באדום.
+            </div>
+            <ul className="mb-4 text-right">
+              {missingFields.map((f) => (
+                <li
+                  key={f.id}
+                  className="flex items-center gap-2 text-red-600 mb-1"
+                >
+                  <AlertCircle className="w-4 h-4 text-red-400" />
+                  <span className="font-medium">{f.label}</span>
+                </li>
+              ))}
+            </ul>
+            <button
+              className="btn-primary w-full mt-2"
+              onClick={() => setShowSubmitError(false)}
+            >
+              סגור
+            </button>
+          </Dialog.Panel>
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label htmlFor="income" className="form-label">
-              הכנסה שנתית ברוטו (₪)
-            </label>
-            <input
-              id="income"
-              type="number"
-              className="input-field"
-              {...register("income", { valueAsNumber: true })}
-            />
-            {errors.income && (
-              <p className="error-text">{errors.income.message}</p>
-            )}
-          </div>
-
-          <div>
-            <label htmlFor="taxPaid" className="form-label">
-              מס הכנסה ששולם (₪)
-            </label>
-            <input
-              id="taxPaid"
-              type="number"
-              className="input-field"
-              {...register("taxPaid", { valueAsNumber: true })}
-            />
-            {errors.taxPaid && (
-              <p className="error-text">{errors.taxPaid.message}</p>
-            )}
-          </div>
-
-          <div>
-            <label htmlFor="taxCredits" className="form-label">
-              נקודות זיכוי בסיסיות
-            </label>
-            <input
-              id="taxCredits"
-              type="number"
-              step="0.25"
-              className="input-field"
-              {...register("taxCredits", { valueAsNumber: true })}
-            />
-            {errors.taxCredits && (
-              <p className="error-text">{errors.taxCredits.message}</p>
-            )}
-          </div>
-
-          <div>
-            <label htmlFor="children" className="form-label">
-              מספר ילדים מתחת לגיל 18
-            </label>
-            <input
-              id="children"
-              type="number"
-              className="input-field"
-              {...register("children", { valueAsNumber: true })}
-            />
-            {errors.children && (
-              <p className="error-text">{errors.children.message}</p>
-            )}
-          </div>
+      </Dialog>
+      {/* End Modal */}
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-bold text-blue-700 mb-2">
+            השלמת נתונים
+          </h2>
+          <p className="text-gray-600">
+            {taxData.hasFormData
+              ? "הנתונים הבאים חולצו מהטופס שהעלית. אנא בדוק ותקן במידת הצורך."
+              : "אנא הזן את הנתונים הבאים כדי שנוכל לחשב את החזר המס האפשרי שלך."}
+          </p>
         </div>
-
-        <div className="space-y-3 mt-4">
-          <h3 className="text-lg font-medium text-gray-900">זכאויות נוספות</h3>
-
-          <div className="flex items-center">
-            <input
-              id="academicDegree"
-              type="checkbox"
-              className="h-4 w-4 text-blue-600 border-gray-300 rounded ml-2"
-              {...register("academicDegree")}
-            />
-            <label htmlFor="academicDegree" className="text-gray-700">
-              בעל/ת תואר אקדמי (יש לי זכאות לנקודת זיכוי אקדמית)
-            </label>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <DynamicForm
+            fields={fields}
+            values={values}
+            onChange={handleChange}
+            submitLabel={undefined}
+            errors={errors}
+          />
+          <div className="space-y-3 mt-4 p-4 bg-blue-50 rounded-xl">
+            <h3 className="text-lg font-medium text-blue-900">
+              זכאויות נוספות
+            </h3>
+            <div className="flex flex-row flex-wrap gap-6 items-center">
+              {EXTRA_CHECKBOXES.map((cb) => (
+                <div className="flex items-center" key={cb.id}>
+                  <input
+                    id={cb.id}
+                    type="checkbox"
+                    className="h-4 w-4 text-blue-600 border-gray-300 rounded ml-2"
+                    checked={!!extra[cb.id as keyof typeof extra]}
+                    onChange={(e) => handleChange(cb.id, e.target.checked)}
+                  />
+                  <label htmlFor={cb.id} className="text-gray-700">
+                    {cb.label}
+                  </label>
+                </div>
+              ))}
+            </div>
           </div>
-
-          <div className="flex items-center">
-            <input
-              id="newImmigrant"
-              type="checkbox"
-              className="h-4 w-4 text-blue-600 border-gray-300 rounded ml-2"
-              {...register("newImmigrant")}
-            />
-            <label htmlFor="newImmigrant" className="text-gray-700">
-              עולה חדש/ה (עליתי לישראל ב-3.5 השנים האחרונות)
-            </label>
+          <div className="flex flex-row justify-between mt-6 gap-4">
+            <button
+              type="button"
+              onClick={goToPreviousStep}
+              className="btn-secondary w-1/2"
+            >
+              חזרה
+            </button>
+            <button
+              type="submit"
+              className="btn-primary w-1/2"
+              aria-disabled={!isFormValid}
+            >
+              המשך
+            </button>
           </div>
-
-          <div className="flex items-center">
-            <input
-              id="livingInPeriphery"
-              type="checkbox"
-              className="h-4 w-4 text-blue-600 border-gray-300 rounded ml-2"
-              {...register("livingInPeriphery")}
-            />
-            <label htmlFor="livingInPeriphery" className="text-gray-700">
-              תושב/ת פריפריה (ישוב המזכה בהטבת מס)
-            </label>
-          </div>
-        </div>
-
-        <div className="flex justify-between items-center mt-8">
-          <button
-            type="button"
-            onClick={goToPreviousStep}
-            className="btn-secondary inline-flex items-center"
-          >
-            <ArrowRight className="ml-1 h-4 w-4" />
-            חזרה
-          </button>
-
-          <button
-            type="submit"
-            className="btn-primary inline-flex items-center"
-          >
-            המשך
-            <ArrowLeft className="mr-1 h-4 w-4" />
-          </button>
-        </div>
-      </form>
-    </div>
+        </form>
+      </div>
+    </>
   );
 };

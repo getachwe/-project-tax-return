@@ -1,3 +1,4 @@
+require("dotenv").config();
 const express = require("express");
 const multer = require("multer");
 const cors = require("cors");
@@ -8,6 +9,7 @@ const { generateTaxPDF } = require("./pdfGenerator");
 const { generateTaxPDFHtml } = require("./pdfGeneratorHtml");
 const { generateTaxPDFMake } = require("./pdfGeneratorMake");
 const fs = require("fs");
+const nodemailer = require("nodemailer");
 
 const app = express();
 const upload = multer({ dest: "uploads/" });
@@ -175,6 +177,61 @@ app.post(
     }
   }
 );
+
+// שליחת דוח במייל
+app.post("/api/send-tax-return-email", express.json(), async (req, res) => {
+  try {
+    const { taxData, email } = req.body;
+    if (!email || !taxData) {
+      return res
+        .status(400)
+        .json({ success: false, error: "חסר מייל או נתונים" });
+    }
+    if (!process.env.MAILTRAP_USER || !process.env.MAILTRAP_PASS) {
+      return res
+        .status(500)
+        .json({ success: false, error: "משתני סביבה ל-Mailtrap לא מוגדרים" });
+    }
+    const taxResult = calculateTax(taxData);
+    const tempPath = path.join(
+      __dirname,
+      "pdfs",
+      `tax-return-email-${Date.now()}.pdf`
+    );
+    await generateTaxPDFHtml(taxResult, tempPath);
+
+    const transporter = nodemailer.createTransport({
+      host: "sandbox.smtp.mailtrap.io",
+      port: 2525,
+      auth: {
+        user: process.env.MAILTRAP_USER,
+        pass: process.env.MAILTRAP_PASS,
+      },
+    });
+
+    const mailOptions = {
+      from: "tax-return@example.com",
+      to: email,
+      subject: "דוח החזר מס שנתי",
+      text: "מצורף דוח החזר מס שנתי. נא לעיין במסמך.",
+      attachments: [
+        {
+          filename: "tax-return.pdf",
+          path: tempPath,
+        },
+      ],
+    };
+
+    await transporter.sendMail(mailOptions);
+    fs.unlink(tempPath, () => {});
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res
+      .status(500)
+      .json({ success: false, error: "שגיאה בשליחת המייל (Mailtrap)" });
+  }
+});
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {

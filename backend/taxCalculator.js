@@ -119,9 +119,14 @@ function calcCreditPoints(data) {
     points += 0.5;
   }
 
-  // Children points (1 point per child)
+  // Children under 18
   if (data.children > 0) {
     points += data.children * 1;
+  }
+
+  // Children under 6 (2 extra points per child under 6)
+  if (data.childrenUnder6 && data.childrenUnder6 > 0) {
+    points += data.childrenUnder6 * 2;
   }
 
   // Academic degree points
@@ -130,19 +135,19 @@ function calcCreditPoints(data) {
   }
 
   // New immigrant points
-  if (data.isNewImmigrant) {
-    if (data.yearsSinceAliyah === 1) points += 3;
-    else if (data.yearsSinceAliyah === 2) points += 2;
-    else if (data.yearsSinceAliyah === 3) points += 1;
+  if (data.newImmigrant || data.isNewImmigrant) {
+    const years = Number(data.yearsSinceAliyah) || 0;
+    if (years === 1) points += 3;
+    else if (years === 2) points += 2;
+    else if (years === 3) points += 1;
   }
 
   // Periphery points
-  if (data.livesInPeriphery) {
+  if (data.livingInPeriphery || data.livesInPeriphery) {
     points += 0.5;
   }
 
-  // Military/National service points
-  if (data.isArmyService) points += 0.25;
+  // National service points
   if (data.isNationalService) points += 0.25;
 
   return points;
@@ -154,9 +159,47 @@ function calculateTax(data) {
     // Validate and normalize input
     const validatedData = validateInput(data);
 
-    // Calculate components
-    const grossTax = calcIncomeTax(validatedData.income);
-    const creditPoints = calcCreditPoints(validatedData);
+    // פטור לנכה - אם אחוז נכות 40% ומעלה, פטור ממס עד תקרה (2024: 614,400 ש"ח)
+    let grossTax = 0;
+    let disabilityExemption = 0;
+    const disabilityPercent = Number(data.disabilityPercent) || 0;
+    const disabilityExemptionCap = 614400;
+    if (disabilityPercent >= 40) {
+      // פטור מלא עד תקרה
+      const exemptIncome = Math.min(
+        validatedData.income,
+        disabilityExemptionCap
+      );
+      disabilityExemption = calcIncomeTax(exemptIncome);
+      grossTax = calcIncomeTax(validatedData.income - exemptIncome);
+    } else {
+      // חישוב רגיל
+      grossTax = calcIncomeTax(validatedData.income);
+    }
+
+    // חישוב פטור לחייל/ת משוחרר/ת
+    let armyExemption = 0;
+    if (data.isArmyService) {
+      // פטור ממס ל-36 חודשים ראשונים עד תקרה של 186,000 ש"ח (נכון ל-2024)
+      const exemptionCap = 186000;
+      const exemptIncome = Math.min(validatedData.income, exemptionCap);
+      armyExemption = calcIncomeTax(exemptIncome);
+      grossTax = calcIncomeTax(validatedData.income - exemptIncome);
+    }
+
+    // ודא שאין חפיפה בין ילדים מתחת ל-6 לסך הילדים
+    let children = Number(data.children) || 0;
+    let childrenUnder6 = Number(data.childrenUnder6) || 0;
+    if (childrenUnder6 > children) {
+      childrenUnder6 = children;
+    }
+
+    const creditPoints = calcCreditPoints({
+      ...validatedData,
+      ...data,
+      children,
+      childrenUnder6,
+    });
     const creditValue = creditPoints * CREDIT_POINT_VALUE;
     const netTax = Math.max(0, grossTax - creditValue);
     const refund = validatedData.taxPaid - netTax;
@@ -173,7 +216,21 @@ function calculateTax(data) {
       refund >= 0
         ? `החזר מס: ${refund.toLocaleString()} ₪`
         : `חוב מס: ${Math.abs(refund).toLocaleString()} ₪`,
-    ].join("\n");
+      disabilityPercent >= 40 ? `פטור נכות: עד תקרה של 614,400 ש"ח` : undefined,
+      data.isArmyService
+        ? `החייל/ת משוחרר/ת: פטור ממס עד תקרה של 186,000 ש"ח (הפטור חושב)`
+        : undefined,
+      childrenUnder6 && childrenUnder6 > 0
+        ? `מתוך ${children} ילדים, ${childrenUnder6} מתחת לגיל 6 (2 נקודות לכל ילד)`
+        : undefined,
+      data.gender === "female" ? "מגדר: נקבה (0.5 נקודות זיכוי)" : undefined,
+      data.isNationalService ? "שירות לאומי: 0.25 נקודות זיכוי" : undefined,
+      (data.newImmigrant || data.isNewImmigrant) && data.yearsSinceAliyah
+        ? `עולה חדש/ה: ${data.yearsSinceAliyah} שנים בארץ (נקודות זיכוי בהתאם)`
+        : undefined,
+    ]
+      .filter(Boolean)
+      .join("\n");
 
     // Return complete breakdown with all necessary data
     return {
@@ -187,6 +244,10 @@ function calculateTax(data) {
       explanation,
       gender: validatedData.gender,
       children: validatedData.children,
+      childrenUnder6: data.childrenUnder6,
+      isArmyService: data.isArmyService,
+      isNationalService: data.isNationalService,
+      yearsSinceAliyah: data.yearsSinceAliyah,
       taxYear: "2024",
       calculationDetails: {
         income: validatedData.income,
@@ -196,6 +257,10 @@ function calculateTax(data) {
         netTax,
         taxPaid: validatedData.taxPaid,
         refund,
+        childrenUnder6: data.childrenUnder6,
+        isArmyService: data.isArmyService,
+        isNationalService: data.isNationalService,
+        yearsSinceAliyah: data.yearsSinceAliyah,
       },
     };
   } catch (error) {

@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, ReactNode } from "react";
 
 // Define the tax data structure
-export interface TaxData {
+export type TaxData = {
   income: number;
   taxPaid: number;
   taxCredits: number;
@@ -11,7 +11,7 @@ export interface TaxData {
   newImmigrant?: boolean;
   livingInPeriphery?: boolean;
   maritalStatus?: string;
-}
+} & Record<string, unknown>;
 
 // Define the context structure
 interface TaxCalculatorContextType {

@@ -2,41 +2,27 @@ import React, { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { Upload, FilePlus, Loader2 } from "lucide-react";
 import { useTaxCalculator } from "../context/TaxCalculatorContext";
-
-const FIELD_LABELS: Record<string, string> = {
-  income: "הכנסה (158)",
-  taxPaid: "מס שנוכה (244)",
-  taxCredits: "זיכויי מס (248)",
-  additionalIncome: "הכנסה נוספת (045)",
-  employmentType: "סוג משרה",
-  workPeriod: "תקופת עבודה",
-  creditPoints: "נקודות זיכוי",
-  children: "מספר ילדים מתחת לגיל 18",
-  maritalStatus: "מצב משפחתי",
-  taxYear: "שנת המס",
-  birthDate: "תאריך לידה",
-  workStartDate: "תאריך תחילת עבודה",
-  workEndDate: "תאריך סיום עבודה",
-  childAllowance: "קצבת ילדים",
-  disabilityAllowance: "קצבת נכות",
-  oldAgeAllowance: "קצבת זקנה",
-  address: "כתובת",
-  residency: "תושבות",
-};
-const MARITAL_OPTIONS = [
-  { value: "single", label: "רווק/ה" },
-  { value: "married", label: "נשוי/אה" },
-  { value: "divorced", label: "גרוש/ה" },
-  { value: "widowed", label: "אלמן/ה" },
-];
+import {
+  FIELD_LABELS,
+  FIELD_TOOLTIPS,
+  MARITAL_OPTIONS,
+  GENDER_OPTIONS,
+  EMPLOYMENT_OPTIONS,
+} from "../constants/fields";
+import { DynamicForm, DynamicFormField } from "./DynamicForm";
 
 export const UploadForm: React.FC = () => {
   const { goToNextStep, setTaxData } = useTaxCalculator();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [missingFields, setMissingFields] = useState<string[] | null>(null);
-  const [extractedData, setExtractedData] = useState<any>(null);
-  const [missingValues, setMissingValues] = useState<any>({});
+  const [extractedData, setExtractedData] = useState<Record<
+    string,
+    string | number | undefined
+  > | null>(null);
+  const [missingValues, setMissingValues] = useState<
+    Record<string, string | number>
+  >({});
 
   const onDrop = useCallback(
     async (acceptedFiles: File[]) => {
@@ -76,12 +62,6 @@ export const UploadForm: React.FC = () => {
     },
     [goToNextStep, setTaxData]
   );
-
-  const handleMissingChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
-    setMissingValues({ ...missingValues, [e.target.name]: e.target.value });
-  };
 
   const handleMissingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -132,86 +112,72 @@ export const UploadForm: React.FC = () => {
     goToNextStep();
   };
 
+  const getFieldType = (key: string): DynamicFormField["type"] => {
+    if (
+      [
+        "income",
+        "taxPaid",
+        "creditPoints",
+        "children",
+        "additionalIncome",
+        "taxYear",
+        "oldAgeAllowance",
+        "childAllowance",
+        "disabilityAllowance",
+      ].includes(key)
+    )
+      return "number";
+    if (["birthDate", "workStartDate", "workEndDate"].includes(key))
+      return "date";
+    if (["maritalStatus", "gender", "employmentType"].includes(key))
+      return "select";
+    return "text";
+  };
+
+  const getOptions = (key: string) => {
+    if (key === "maritalStatus") return MARITAL_OPTIONS;
+    if (key === "gender") return GENDER_OPTIONS;
+    if (key === "employmentType") return EMPLOYMENT_OPTIONS;
+    return undefined;
+  };
+
   // If missing fields, show dynamic form
   if (missingFields && missingFields.length > 0) {
+    // Editable form for ALL fields
+    const allFieldKeys = Object.keys(FIELD_LABELS);
+    const fields: DynamicFormField[] = allFieldKeys.map((key) => ({
+      id: key,
+      label: FIELD_LABELS[key],
+      type: getFieldType(key),
+      tooltip: FIELD_TOOLTIPS[key],
+      options: getOptions(key),
+      required: ["income", "taxPaid", "taxYear", "maritalStatus"].includes(key),
+    }));
+    const values = { ...extractedData, ...missingValues };
+    const handleChange = (id: string, value: string | number | boolean) => {
+      setMissingValues((prev) => ({
+        ...prev,
+        [id]: typeof value === "boolean" ? String(value) : value,
+      }));
+    };
     return (
       <form onSubmit={handleMissingSubmit} className="space-y-6">
         <div>
-          <h2 className="text-xl font-bold text-gray-900 mb-2">
+          <h2 className="text-2xl font-bold text-blue-700 mb-2">
             השלמת נתונים חסרים
           </h2>
           <p className="text-gray-600">אנחנו צריכים עוד קצת מידע כדי להמשיך:</p>
         </div>
-        {extractedData && (
-          <div className="mb-4 p-3 bg-blue-50 rounded-md">
-            <div className="font-bold mb-2">
-              הנתונים שחולצו אוטומטית מהטופס:
-            </div>
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="bg-gray-100">
-                  <th className="p-2 border">שדה</th>
-                  <th className="p-2 border">ערך</th>
-                </tr>
-              </thead>
-              <tbody>
-                {Object.entries(FIELD_LABELS).map(([key, label]) => (
-                  <tr key={key} className="border-b">
-                    <td className="p-2 border">{label}</td>
-                    <td className="p-2 border">
-                      {extractedData && extractedData[key] ? (
-                        extractedData[key]
-                      ) : (
-                        <input
-                          type="text"
-                          className="border p-1 w-full"
-                          placeholder="הזן ערך"
-                          name={key}
-                          onChange={handleMissingChange}
-                          value={missingValues[key] || ""}
-                        />
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <div className="mb-4 p-3 bg-blue-50 rounded-md">
+          <div className="font-bold mb-2">
+            הנתונים שחולצו אוטומטית מהטופס (ניתן לערוך הכל):
           </div>
-        )}
-        {missingFields.map((field) => (
-          <div key={field} className="mb-4">
-            <label className="form-label" htmlFor={field}>
-              {FIELD_LABELS[field] || field}
-            </label>
-            {field === "maritalStatus" ? (
-              <select
-                id="maritalStatus"
-                name="maritalStatus"
-                className="input-field"
-                value={missingValues.maritalStatus || ""}
-                onChange={handleMissingChange}
-                required
-              >
-                <option value="">בחר/י...</option>
-                {MARITAL_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <input
-                id={field}
-                name={field}
-                type="number"
-                className="input-field"
-                value={missingValues[field] || ""}
-                onChange={handleMissingChange}
-                required
-              />
-            )}
-          </div>
-        ))}
+          <DynamicForm
+            fields={fields}
+            values={values}
+            onChange={handleChange}
+          />
+        </div>
         {error && (
           <div className="p-3 bg-red-50 text-red-700 rounded-md">{error}</div>
         )}
@@ -236,76 +202,42 @@ export const UploadForm: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-bold text-gray-900 mb-2">העלאת טופס 106</h2>
-        <p className="text-gray-600">
-          העלה את טופס 106 שלך (או טופס דומה) כקובץ PDF או תמונה ואנחנו נחלץ את
-          הנתונים באופן אוטומטי.
+    <div className="flex flex-col items-center gap-8 p-0 w-full">
+      <div className="flex flex-col items-center gap-2">
+        <Upload className="h-14 w-14 text-blue-700 mb-2" />
+        <h2 className="text-2xl font-extrabold text-gray-900 mb-1">
+          העלאת טופס 106
+        </h2>
+        <p className="text-gray-600 mb-4">
+          העלה קובץ PDF, JPG או PNG של טופס 106 שלך, או המשך להזנה ידנית.
         </p>
       </div>
-
       <div
         {...getRootProps()}
-        className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors duration-200 ${
+        className={`w-full max-w-md border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer transition-all duration-200 ${
           isDragActive
             ? "border-blue-500 bg-blue-50"
-            : "border-gray-300 hover:border-blue-500 hover:bg-blue-50"
+            : "border-gray-300 bg-white/60 hover:bg-blue-50"
         }`}
       >
         <input {...getInputProps()} />
-
-        <Upload className="mx-auto h-12 w-12 text-gray-400" />
-
-        <p className="mt-2 text-gray-600">
-          {isDragActive
-            ? "שחרר את הקובץ כאן"
-            : "גרור ושחרר קובץ כאן, או לחץ לבחירת קובץ"}
-        </p>
-
-        <p className="mt-1 text-sm text-gray-500">
-          PDF, JPG, או PNG (מקסימום 5MB)
-        </p>
-
+        <FilePlus className="h-10 w-10 text-blue-400 mb-2" />
+        <span className="text-gray-700 font-medium">
+          גרור/י לכאן קובץ או לחץ/י לבחירה
+        </span>
         {selectedFile && (
-          <div className="mt-4 p-2 bg-blue-50 rounded-md inline-flex items-center">
-            <FilePlus className="h-5 w-5 text-blue-500 ml-2" />
-            <span className="text-sm text-blue-700">{selectedFile.name}</span>
-          </div>
+          <span className="mt-2 text-blue-700">{selectedFile.name}</span>
         )}
       </div>
-
-      {error && (
-        <div className="p-3 bg-red-50 text-red-700 rounded-md">{error}</div>
-      )}
-
-      <div className="flex justify-between items-center mt-6">
-        <button
-          type="button"
-          onClick={handleManualEntry}
-          className="btn-secondary"
-        >
-          הזנה ידנית
-        </button>
-
-        <button
-          type="button"
-          onClick={() => onDrop(acceptedFiles)}
-          disabled={!selectedFile || isLoading}
-          className={`btn-primary ${
-            !selectedFile || isLoading ? "opacity-50 cursor-not-allowed" : ""
-          }`}
-        >
-          {isLoading ? (
-            <>
-              <Loader2 className="animate-spin h-5 w-5 ml-2 inline" />
-              מעלה ומעבד...
-            </>
-          ) : (
-            "המשך"
-          )}
-        </button>
-      </div>
+      <button
+        type="button"
+        onClick={handleManualEntry}
+        className="btn-secondary w-full max-w-md mt-2"
+      >
+        הזנה ידנית במקום העלאה
+      </button>
+      {isLoading && <Loader2 className="animate-spin text-blue-700 mt-4" />}
+      {error && <div className="error-text text-center mt-2">{error}</div>}
     </div>
   );
 };
