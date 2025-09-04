@@ -17,14 +17,14 @@ const upload = multer({ dest: "uploads/" });
 app.use(cors());
 app.use(express.json());
 
-const REQUIRED_CODES = ["158", "170"];
+// Minimal required fields by name for progressing without full extraction
+const REQUIRED_FIELDS_MIN = ["income", "taxPaid", "taxYear", "maritalStatus"];
 
-function getMissingCodes(codeMap) {
-  return REQUIRED_CODES.filter(
-    (code) =>
-      codeMap[code] === undefined ||
-      codeMap[code] === null ||
-      codeMap[code] === ""
+function getMissingFieldsByName(data) {
+  const source = data || {};
+  return REQUIRED_FIELDS_MIN.filter(
+    (key) =>
+      source[key] === undefined || source[key] === null || source[key] === ""
   );
 }
 
@@ -55,21 +55,23 @@ app.get("/api/health", (req, res) => {
 // Upload 106 form and process
 app.post("/api/process-106", upload.single("file"), async (req, res) => {
   try {
-    let codeMap, missingCodes;
+    let codeMap, missingFields;
     if (req.file) {
       const result = await extract106(req.file.path, req.file.mimetype);
+      if (!result.success) {
+        return res.status(400).json({ success: false, error: result.error });
+      }
       codeMap = result.data;
-      missingCodes = getMissingCodes(codeMap);
+      // Prefer extractor's missingFields if provided; fall back to minimal name-based check
+      missingFields = Array.isArray(result.missingFields)
+        ? result.missingFields
+        : getMissingFieldsByName(codeMap);
     } else {
-      codeMap = req.body;
-      missingCodes = getMissingCodes(codeMap);
+      codeMap = req.body || {};
+      missingFields = getMissingFieldsByName(codeMap);
     }
-    if (missingCodes.length > 0) {
-      return res.json({
-        success: true,
-        data: codeMap,
-        missingFields: missingCodes,
-      });
+    if (missingFields.length > 0) {
+      return res.json({ success: true, data: codeMap, missingFields });
     }
     const taxResult = calculateTax(codeMap);
     res.json({ success: true, data: taxResult });

@@ -145,13 +145,26 @@ export const UploadForm: React.FC = () => {
   if (missingFields && missingFields.length > 0) {
     // Editable form for ALL fields
     const allFieldKeys = Object.keys(FIELD_LABELS);
+    const TOOLTIP_KEYS = new Set([
+      "income",
+      "taxPaid",
+      "taxCredits",
+      "additionalIncome",
+      "taxYear",
+      "childAllowance",
+      "disabilityAllowance",
+      "oldAgeAllowance",
+    ]);
+
     const fields: DynamicFormField[] = allFieldKeys.map((key) => ({
       id: key,
       label: FIELD_LABELS[key],
       type: getFieldType(key),
-      tooltip: FIELD_TOOLTIPS[key],
+      tooltip: TOOLTIP_KEYS.has(key) ? FIELD_TOOLTIPS[key] : undefined,
       options: getOptions(key),
       required: ["income", "taxPaid", "taxYear", "maritalStatus"].includes(key),
+      min: key === "taxYear" ? new Date().getFullYear() - 6 : undefined,
+      max: key === "taxYear" ? new Date().getFullYear() - 1 : undefined,
     }));
     const values = { ...extractedData, ...missingValues };
     const handleChange = (id: string, value: string | number | boolean) => {

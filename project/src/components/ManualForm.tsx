@@ -11,6 +11,20 @@ import {
 } from "../constants/fields";
 import { DynamicForm, DynamicFormField } from "./DynamicForm";
 
+const TOOLTIP_KEYS = new Set([
+  "income",
+  "taxPaid",
+  "taxCredits",
+  "additionalIncome",
+  "taxYear",
+  "childAllowance",
+  "disabilityAllowance",
+  "oldAgeAllowance",
+]);
+
+const getTooltip = (key: string) =>
+  TOOLTIP_KEYS.has(key) ? FIELD_TOOLTIPS[key] : undefined;
+
 const EXTRA_CHECKBOXES = [
   {
     id: "academicDegree",
@@ -74,12 +88,12 @@ export const ManualForm: React.FC = () => {
         id: key,
         label,
         type: getFieldType(key),
-        tooltip: FIELD_TOOLTIPS[key],
+        tooltip: getTooltip(key),
         options: getOptions(key),
         required: ["income", "taxPaid", "taxYear", "maritalStatus"].includes(
           key
         ),
-        readOnly: key === "taxYear" && taxData.hasFormData,
+        readOnly: key === "taxYear" ? false : undefined,
         min: [
           "income",
           "taxPaid",
@@ -90,9 +104,11 @@ export const ManualForm: React.FC = () => {
           "childAllowance",
           "disabilityAllowance",
         ].includes(key)
-          ? 0
+          ? key === "taxYear"
+            ? new Date().getFullYear() - 6
+            : 0
           : undefined,
-        max: key === "taxYear" ? new Date().getFullYear() : undefined,
+        max: key === "taxYear" ? new Date().getFullYear() - 1 : undefined,
       })),
     [taxData.hasFormData]
   );
