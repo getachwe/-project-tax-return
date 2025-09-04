@@ -134,11 +134,30 @@ export const ResultsDisplay: React.FC = () => {
                   body: JSON.stringify(taxData),
                 }
               );
+              if (!response.ok) {
+                setError("שגיאה ביצירת ה-PDF בשרת");
+                return;
+              }
+              const disp = response.headers.get("Content-Disposition") || "";
+              const match = disp.match(/filename\s*=\s*"?([^";]+)"?/i);
+              const serverName = match ? match[1] : null;
+              const td = taxData as Record<string, unknown>;
+              const year = String(td.taxYear ?? "");
+              const full = [td.firstName, td.lastName]
+                .filter(Boolean)
+                .map((v) => String(v))
+                .join(" ");
+              const fallbackName = (
+                full || String(td.employeeName ?? td.name ?? "tax-return")
+              )
+                .replace(/[^\u0590-\u05FF\w\s-]/g, "")
+                .replace(/\s+/g, "_");
+              const filename = serverName || `${fallbackName}-${year}.pdf`;
               const blob = await response.blob();
               const url = window.URL.createObjectURL(blob);
               const link = document.createElement("a");
               link.href = url;
-              link.download = "tax-return.pdf";
+              link.download = filename;
               document.body.appendChild(link);
               link.click();
               document.body.removeChild(link);

@@ -102,9 +102,27 @@ app.post("/api/generate-tax-return-pdf", express.json(), async (req, res) => {
       "pdfs",
       `tax-return-${Date.now()}.pdf`
     );
-    await generateTaxPDFHtml(taxResult, tempPath);
+    // שלח למחולל ה-PDF גם את הנתונים הגולמיים כדי להציג שם פרטי/משפחה וכו'
+    await generateTaxPDFHtml({ ...taxResult, ...taxData }, tempPath);
+    const fullName =
+      [taxData.firstName, taxData.lastName].filter(Boolean).join(" ") ||
+      taxData.employeeName ||
+      taxData.name ||
+      "דוח";
+    const safeName = fullName
+      .replace(/[^\u0590-\u05FF\w\s-]/g, "")
+      .replace(/\s+/g, "_");
+    const year =
+      String(taxResult.taxYear || "").trim() ||
+      String(new Date().getFullYear() - 1);
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", "attachment; filename=tax-return.pdf");
+    const finalName = `${safeName}-${year}.pdf`;
+    const asciiFallback = finalName.replace(/[^\u0000-\u007F]/g, "_");
+    const encoded = encodeURIComponent(finalName);
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encoded}`
+    );
     const stream = fs.createReadStream(tempPath);
     stream.pipe(res);
     stream.on("close", () => {
@@ -162,11 +180,25 @@ app.post(
         "pdfs",
         `tax-return-make-${Date.now()}.pdf`
       );
-      await generateTaxPDFMake(taxResult, tempPath);
+      await generateTaxPDFMake({ ...taxResult, ...taxData }, tempPath);
+      const fullName =
+        [taxData.firstName, taxData.lastName].filter(Boolean).join(" ") ||
+        taxData.employeeName ||
+        taxData.name ||
+        "דוח";
+      const safeName = fullName
+        .replace(/[^\u0590-\u05FF\w\s-]/g, "")
+        .replace(/\s+/g, "_");
+      const year =
+        String(taxResult.taxYear || "").trim() ||
+        String(new Date().getFullYear() - 1);
       res.setHeader("Content-Type", "application/pdf");
+      const finalName = `${safeName}-${year}.pdf`;
+      const asciiFallback = finalName.replace(/[^\u0000-\u007F]/g, "_");
+      const encoded = encodeURIComponent(finalName);
       res.setHeader(
         "Content-Disposition",
-        "attachment; filename=tax-return.pdf"
+        `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encoded}`
       );
       const stream = fs.createReadStream(tempPath);
       stream.pipe(res);

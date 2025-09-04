@@ -3,6 +3,26 @@ function parseText(text, FIELD_PATTERNS, TAX_CODES) {
   console.log(text.substring(0, 500) + "...");
   console.log("=== END DEBUG ===");
 
+  // ניקוי טקסט לפני פרסינג
+  function normalizeText(input) {
+    return (
+      input
+        // הסרת תווים בלתי נראים נפוצים ב-RTL
+        .replace(/[\u200f\u200e\u202a-\u202e]/g, "")
+        // unify quotation
+        .replace(/["׳`]/g, '"')
+        // normalize dashes and spaces
+        .replace(/[\u00A0\u2000-\u200B]/g, " ")
+        .replace(/[\t]+/g, " ")
+        .replace(/\s+\n/g, "\n")
+        .replace(/\n\s+/g, "\n")
+        .replace(/ +/g, " ")
+        .trim()
+    );
+  }
+
+  text = normalizeText(text);
+
   let data = {};
   const lines = text
     .split("\n")
@@ -14,7 +34,17 @@ function parseText(text, FIELD_PATTERNS, TAX_CODES) {
   if (Array.isArray(FIELD_PATTERNS)) {
     allPatterns = FIELD_PATTERNS;
   } else {
-    Object.values(FIELD_PATTERNS).forEach((arr) => allPatterns.push(...arr));
+    // זיהוי תבנית
+    const template = detectTemplate(text);
+    if (FIELD_PATTERNS[template] && FIELD_PATTERNS[template].length > 0) {
+      allPatterns.push(...FIELD_PATTERNS[template]);
+    }
+    // תמיד הוסף גם את ברירת המחדל כגיבוי
+    if (FIELD_PATTERNS.default) {
+      allPatterns.push(...FIELD_PATTERNS.default);
+    } else {
+      Object.values(FIELD_PATTERNS).forEach((arr) => allPatterns.push(...arr));
+    }
   }
 
   for (const line of lines) {
@@ -320,6 +350,40 @@ function parseText(text, FIELD_PATTERNS, TAX_CODES) {
   console.log(data);
   console.log("=== END DEBUG ===");
 
+  // פרסינג טבלאי: זיהוי טבלאות עם עמודות קוד/סכום והמרה לשדות
+  (function parseTables() {
+    const hasHeaders =
+      /\bקוד\b[\s\S]{0,40}\bסכום\b|\bסכום\b[\s\S]{0,40}\bקוד\b/.test(text);
+    if (!hasHeaders) return;
+
+    const lines = text.split("\n");
+    for (const line of lines) {
+      // דפוסים נפוצים לשורה טבלאית: ... קוד <num> ... סכום <amount>
+      const rowPatterns = [
+        /(?:^|\s)(\d{2,5})(?:\s+|\s+[^\d]+\s+)([\d,\.]+)(?:\s*ש"ח)?(?:\s|$)/,
+        /\)(\d{2,5})\(\s*([\d,\.]+)\s*ש"ח/,
+        /(\d{2,5})\s+([\d,\.]+)\s*ש"ח/,
+      ];
+      for (const rp of rowPatterns) {
+        const m = line.match(rp);
+        if (m) {
+          const code = m[1];
+          const amount = Number(m[2].replace(/,/g, ""));
+          if (TAX_CODES[code] && !Number.isNaN(amount) && amount >= 0) {
+            const field = TAX_CODES[code];
+            if (data[field] === undefined || data[field] === null) {
+              data[field] = amount;
+              console.log(
+                `=== DEBUG: Table row mapped ${code} -> ${field} = ${amount} ===`
+              );
+            }
+          }
+          break;
+        }
+      }
+    }
+  })();
+
   // חיפוש ספציפי לטופס 106 - קוד בסוגריים ואז סכום
   const specificPatterns = [
     // דפוס: (158/172) סה"כ 45,118 ש"ח
@@ -432,20 +496,74 @@ function parseText(text, FIELD_PATTERNS, TAX_CODES) {
   // חיפוש לפי שם שדה (Labels) למקרים בהם יש תווית ברורה לפני הערך
   (function extractByLabels() {
     const labelMap = [
-      { labels: ["שם העובד", "שם העובדת", "שם"], key: "employeeName", type: "text" },
-      { labels: ["ת.ז.", "תעודת זהות", "מספר זהות"], key: "employeeId", type: "text" },
-      { labels: ["כתובת", "כתובת מגורים", "כתובת העובד"], key: "address", type: "text" },
-      { labels: ["שם המעסיק", "שם החברה", "שם המעביד"], key: "employerName", type: "text" },
+      {
+        labels: ["שם העובד", "שם העובדת", "שם"],
+        key: "employeeName",
+        type: "text",
+      },
+      {
+        labels: ["ת.ז.", "תעודת זהות", "מספר זהות"],
+        key: "employeeId",
+        type: "text",
+      },
+      {
+        labels: ["כתובת", "כתובת מגורים", "כתובת העובד"],
+        key: "address",
+        type: "text",
+      },
+      {
+        labels: ["שם המעסיק", "שם החברה", "שם המעביד"],
+        key: "employerName",
+        type: "text",
+      },
       { labels: ["ח.פ.", "מספר מעסיק"], key: "employerId", type: "text" },
       { labels: ["שנת המס", "שנת מס"], key: "taxYear", type: "year" },
-      { labels: ["תאריך לידה", "תאריך לידת העובד"], key: "birthDate", type: "date" },
-      { labels: ["שנת לידה", "שנת לידת העובד"], key: "birthYear", type: "year" },
-      { labels: ["תאריך תחילת עבודה", "תחילת עבודה"], key: "workStartDate", type: "date" },
-      { labels: ["תאריך סיום עבודה", "סיום עבודה"], key: "workEndDate", type: "date" },
-      { labels: ["תקופת עבודה", "תקופת העסקה", "חדשי עבודה"], key: "workPeriod", type: "text" },
-      { labels: ["נקודות זיכוי", "נקודת זיכוי"], key: "creditPoints", type: "number" },
-      { labels: ["שכר ברוטו", 'סה"כ שכר ברוטו', "ברוטו לשנה", 'סה"כ הכנסה'], key: "income", type: "amount" },
-      { labels: ["מס הכנסה", 'סה"כ מס הכנסה', 'סה"כ ניכויי מס', "ניכוי מס הכנסה", "מס שנוכה"], key: "taxPaid", type: "amount" },
+      {
+        labels: ["תאריך לידה", "תאריך לידת העובד"],
+        key: "birthDate",
+        type: "date",
+      },
+      {
+        labels: ["שנת לידה", "שנת לידת העובד"],
+        key: "birthYear",
+        type: "year",
+      },
+      {
+        labels: ["תאריך תחילת עבודה", "תחילת עבודה"],
+        key: "workStartDate",
+        type: "date",
+      },
+      {
+        labels: ["תאריך סיום עבודה", "סיום עבודה"],
+        key: "workEndDate",
+        type: "date",
+      },
+      {
+        labels: ["תקופת עבודה", "תקופת העסקה", "חדשי עבודה"],
+        key: "workPeriod",
+        type: "text",
+      },
+      {
+        labels: ["נקודות זיכוי", "נקודת זיכוי"],
+        key: "creditPoints",
+        type: "number",
+      },
+      {
+        labels: ["שכר ברוטו", 'סה"כ שכר ברוטו', "ברוטו לשנה", 'סה"כ הכנסה'],
+        key: "income",
+        type: "amount",
+      },
+      {
+        labels: [
+          "מס הכנסה",
+          'סה"כ מס הכנסה',
+          'סה"כ ניכויי מס',
+          "ניכוי מס הכנסה",
+          "מס שנוכה",
+        ],
+        key: "taxPaid",
+        type: "amount",
+      },
     ];
 
     const lines = text.split("\n");
@@ -724,9 +842,10 @@ function findMissingFieldsByContext(data, text) {
 function detectTemplate(text) {
   if (text.includes("אישור על הכנסות") && text.includes("שנת המס"))
     return "templateA";
-  if (text.includes("תשלומים וניכויים") && text.includes("מספר עובד"))
+  if (text.includes("תשלומים וניכויים") || text.includes("ניכויי מס"))
     return "templateB";
-  // אפשר להוסיף תנאים נוספים לזיהוי תבניות אחרות
+  if (text.includes("טופס 106") || text.includes("מספר עובד"))
+    return "templateC";
   return "default";
 }
 

@@ -123,7 +123,21 @@ async function generateTaxPDFHtml(data, outputPath) {
   </head>
   <body>
     <div class="main-content">
-      <h1>תוצאות החישוב</h1>
+      <h1>תוצאות החישוב לשנת ${data.taxYear || ""}</h1>
+      <div class="subtitle" style="font-weight:700;">
+        ${(() => {
+          const full = [data.firstName, data.lastName]
+            .filter(Boolean)
+            .join(" ");
+          const fallback = data.employeeName || data.name || "";
+          const display = full || fallback;
+          return display
+            ? `שלום רב, ${display}, נשמח לשתף את תוצאות החישוב לשנת ${
+                data.taxYear || ""
+              }`
+            : "";
+        })()}
+      </div>
       <div class="subtitle">להלן תוצאות חישוב החזר המס הפוטנציאלי שלך בהתבסס על הנתונים שהוזנו.</div>
       <div class="refund">
         ${
@@ -148,6 +162,14 @@ async function generateTaxPDFHtml(data, outputPath) {
           </tr>
         </thead>
         <tbody>
+          ${(() => {
+            const full = [data.firstName, data.lastName]
+              .filter(Boolean)
+              .join(" ");
+            const fallback = data.employeeName || data.name || "";
+            const display = full || fallback;
+            return display ? `<tr><td>שם</td><td>${display}</td></tr>` : "";
+          })()}
           <tr><td>הכנסה שנתית</td><td>${formatNumber(data.income)} ₪</td></tr>
           <tr><td>מס ששולם</td><td>${formatNumber(data.taxPaid)} ₪</td></tr>
           <tr><td>נקודות זיכוי</td><td>${data.creditPoints.toFixed(2)}</td></tr>

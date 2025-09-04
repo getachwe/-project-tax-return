@@ -31,7 +31,26 @@ async function generateTaxPDFMake(data, outputPath) {
       // Wrap all content in a stack to avoid page break
       {
         stack: [
-          { text: "תוצאות החישוב", style: "header", alignment: "right" },
+          {
+            text: `תוצאות החישוב לשנת ${data.taxYear || ""}`,
+            style: "header",
+            alignment: "right",
+          },
+          (() => {
+            const full =
+              [data.firstName, data.lastName].filter(Boolean).join(" ") ||
+              data.employeeName ||
+              data.name ||
+              "";
+            return full
+              ? {
+                  text: `שלום ${full},`,
+                  style: "subheader",
+                  alignment: "right",
+                  margin: [0, 0, 0, 8],
+                }
+              : { text: "", margin: [0, 0, 0, 0] };
+          })(),
           {
             text: "להלן תוצאות חישוב החזר המס הפוטנציאלי שלך בהתבסס על הנתונים שהוזנו.",
             style: "subheader",
@@ -71,6 +90,14 @@ async function generateTaxPDFMake(data, outputPath) {
                   { text: "שדה", style: "tableHeader", alignment: "right" },
                   { text: "ערך", style: "tableHeader", alignment: "right" },
                 ],
+                (() => {
+                  const full =
+                    [data.firstName, data.lastName].filter(Boolean).join(" ") ||
+                    data.employeeName ||
+                    data.name ||
+                    "";
+                  return full ? ["שם", full] : null;
+                })(),
                 ["הכנסה שנתית", `${formatNumber(data.income)} ₪`],
                 ["מס ששולם", `${formatNumber(data.taxPaid)} ₪`],
                 ["נקודות זיכוי", data.creditPoints.toFixed(2)],
@@ -82,7 +109,7 @@ async function generateTaxPDFMake(data, outputPath) {
                 ["מס צפוי לפי חישוב", `${formatNumber(data.netTax)} ₪`],
                 ["החזר מס פוטנציאלי", `${formatNumber(data.refund)} ₪`],
                 ["מצב משפחתי", data.maritalStatus ? data.maritalStatus : "-"],
-              ],
+              ].filter(Boolean),
             },
             layout: {
               fillColor: function (rowIndex) {

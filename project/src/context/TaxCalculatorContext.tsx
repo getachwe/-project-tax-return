@@ -1,4 +1,10 @@
-import { createContext, useContext, useState, ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from "react";
 
 // Define the tax data structure
 export type TaxData = {
@@ -44,6 +50,41 @@ export const TaxCalculatorProvider: React.FC<{ children: ReactNode }> = ({
   const [currentStep, setCurrentStep] = useState(1);
   const [taxData, setTaxData] = useState<TaxData>(defaultTaxData);
 
+  // Load draft from localStorage on mount
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("tax_return_draft");
+      const rawStep = localStorage.getItem("tax_return_step");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === "object") {
+          setTaxData({ ...defaultTaxData, ...parsed });
+        }
+      }
+      if (rawStep) {
+        const stepNum = parseInt(rawStep, 10);
+        if (!Number.isNaN(stepNum) && stepNum >= 1 && stepNum <= 3) {
+          setCurrentStep(stepNum);
+        }
+      }
+    } catch (e) {
+      // ignore corrupted drafts
+    }
+  }, []);
+
+  // Autosave draft on changes
+  useEffect(() => {
+    try {
+      localStorage.setItem("tax_return_draft", JSON.stringify(taxData));
+    } catch (e) {}
+  }, [taxData]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("tax_return_step", String(currentStep));
+    } catch (e) {}
+  }, [currentStep]);
+
   const goToNextStep = () => {
     setCurrentStep((prev) => Math.min(prev + 1, 3));
   };
@@ -55,6 +96,10 @@ export const TaxCalculatorProvider: React.FC<{ children: ReactNode }> = ({
   const resetCalculator = () => {
     setCurrentStep(1);
     setTaxData(defaultTaxData);
+    try {
+      localStorage.removeItem("tax_return_draft");
+      localStorage.removeItem("tax_return_step");
+    } catch (e) {}
   };
 
   return (

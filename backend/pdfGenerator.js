@@ -69,6 +69,32 @@ function generateTaxPDF(data, outputPath) {
         .text(rtl("תוצאות  החישוב"), { align: "right" })
         .moveDown(1);
 
+      // שם ושנה (אם קיימים)
+      const fullName = [data.firstName, data.lastName]
+        .filter(Boolean)
+        .join(" ");
+      const personName =
+        fullName ||
+        data.employeeName ||
+        data.name ||
+        data.fullName ||
+        data.employee_name;
+      if (personName) {
+        doc
+          .font("hebrew")
+          .fontSize(14)
+          .fillColor(PDF_STYLES.colors.text)
+          .text(
+            rtl(
+              `דוח זה הופק עבור ${personName}${
+                data.taxYear ? ` — שנת המס ${data.taxYear}` : ""
+              }`
+            ),
+            { align: "right" }
+          )
+          .moveDown(0.8);
+      }
+
       // תיאור קצר
       doc
         .font("hebrew")
@@ -117,6 +143,7 @@ function generateTaxPDF(data, outputPath) {
 
       // Table data
       const details = [
+        personName ? [rtl("שם"), rtl(personName)] : null,
         [rtl("הכנסה שנתית"), `${data.income.toLocaleString()} ₪`],
         [rtl("מס ששולם"), `${data.taxPaid.toLocaleString()} ₪`],
         [rtl("נקודות זיכוי"), data.creditPoints.toFixed(2)],
@@ -128,7 +155,7 @@ function generateTaxPDF(data, outputPath) {
         [rtl("מס צפוי לפי חישוב"), `${data.netTax.toLocaleString()} ₪`],
         [rtl("החזר מס פוטנציאלי"), `${data.refund.toLocaleString()} ₪`],
         [rtl("מצב משפחתי"), data.maritalStatus ? rtl(data.maritalStatus) : "-"],
-      ];
+      ].filter(Boolean);
       // Table layout (right-aligned)
       const tableWidth = 400;
       const rowHeight = 28;

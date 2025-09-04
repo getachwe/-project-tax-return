@@ -10,6 +10,7 @@ import {
   EMPLOYMENT_OPTIONS,
 } from "../constants/fields";
 import { DynamicForm, DynamicFormField } from "./DynamicForm";
+import Toast from "./Toast";
 
 export const UploadForm: React.FC = () => {
   const { goToNextStep, setTaxData } = useTaxCalculator();
@@ -23,6 +24,10 @@ export const UploadForm: React.FC = () => {
   const [missingValues, setMissingValues] = useState<
     Record<string, string | number>
   >({});
+  const [toast, setToast] = useState<{
+    type: "success" | "error" | "info";
+    message: string;
+  } | null>(null);
 
   const onDrop = useCallback(
     async (acceptedFiles: File[]) => {
@@ -47,6 +52,10 @@ export const UploadForm: React.FC = () => {
           setExtractedData(result.data);
           setMissingFields(result.missingFields);
           setIsLoading(false);
+          setToast({
+            type: "info",
+            message: "נמצאו נתונים – יש להשלים שדות חסרים",
+          });
           return;
         }
         setTaxData({
@@ -54,10 +63,12 @@ export const UploadForm: React.FC = () => {
           hasFormData: true,
         });
         setIsLoading(false);
+        setToast({ type: "success", message: "הקובץ עובד בהצלחה!" });
         goToNextStep();
       } catch (err) {
         setIsLoading(false);
         setError((err as Error).message);
+        setToast({ type: "error", message: (err as Error).message });
       }
     },
     [goToNextStep, setTaxData]
@@ -81,10 +92,12 @@ export const UploadForm: React.FC = () => {
       if (!result.success) throw new Error(result.error || "שגיאה לא ידועה");
       setTaxData({ ...allData, ...result.data, hasFormData: true });
       setIsLoading(false);
+      setToast({ type: "success", message: "נשמר והמשכנו לשלב הבא" });
       goToNextStep();
     } catch (err) {
       setIsLoading(false);
       setError((err as Error).message);
+      setToast({ type: "error", message: (err as Error).message });
     }
   };
 
@@ -251,6 +264,7 @@ export const UploadForm: React.FC = () => {
       </button>
       {isLoading && <Loader2 className="animate-spin text-blue-700 mt-4" />}
       {error && <div className="error-text text-center mt-2">{error}</div>}
+      {toast && <Toast type={toast.type} message={toast.message} />}
     </div>
   );
 };
