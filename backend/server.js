@@ -10,6 +10,7 @@ const { generateTaxPDFHtml } = require("./pdfGeneratorHtml");
 const { generateTaxPDFMake } = require("./pdfGeneratorMake");
 const fs = require("fs");
 const nodemailer = require("nodemailer");
+const { getSupabaseClient } = require("./supabaseClient");
 
 const app = express();
 const upload = multer({ dest: "uploads/" });
@@ -50,6 +51,127 @@ function normalizeDataTypes(data) {
 // Health check
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok" });
+});
+
+// --- Auth endpoints (Supabase) ---
+app.post("/api/auth/signup", async (req, res) => {
+  try {
+    const supabase = await getSupabaseClient();
+    const { email, password, data } = req.body || {};
+    if (!email || !password) {
+      return res.status(400).json({ error: "email and password are required" });
+    }
+    const { data: signUpData, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: data || {} },
+    });
+    if (error) return res.status(400).json({ error: error.message });
+    res.json(signUpData);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/auth/signin", async (req, res) => {
+  try {
+    const supabase = await getSupabaseClient();
+    const { email, password } = req.body || {};
+    if (!email || !password) {
+      return res.status(400).json({ error: "email and password are required" });
+    }
+    const { data: signInData, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (error) return res.status(400).json({ error: error.message });
+    res.json(signInData);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/api/auth/me", async (req, res) => {
+  try {
+    const supabase = await getSupabaseClient();
+    const authHeader = req.headers["authorization"] || "";
+    const token = authHeader.startsWith("Bearer ")
+      ? authHeader.slice("Bearer ".length)
+      : null;
+    if (!token) return res.status(401).json({ error: "missing bearer token" });
+    const { data, error } = await supabase.auth.getUser(token);
+    if (error) return res.status(401).json({ error: error.message });
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- Tax calculation endpoints with Supabase storage ---
+app.post("/api/calculations", async (req, res) => {
+  try {
+    const supabase = await getSupabaseClient();
+    const authHeader = req.headers["authorization"] || "";
+    const token = authHeader.startsWith("Bearer ")
+      ? authHeader.slice("Bearer ".length)
+      : null;
+    if (!token) return res.status(401).json({ error: "missing bearer token" });
+
+    const { data: userData, error: userError } = await supabase.auth.getUser(
+      token
+    );
+    if (userError) return res.status(401).json({ error: userError.message });
+
+    const { taxData, calculationResult } = req.body;
+    if (!taxData || !calculationResult) {
+      return res
+        .status(400)
+        .json({ error: "taxData and calculationResult are required" });
+    }
+
+    const { data, error } = await supabase
+      .from("tax_calculations")
+      .insert({
+        user_id: userData.user.id,
+        tax_data: taxData,
+        calculation_result: calculationResult,
+        created_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
+
+    if (error) return res.status(400).json({ error: error.message });
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/api/calculations", async (req, res) => {
+  try {
+    const supabase = await getSupabaseClient();
+    const authHeader = req.headers["authorization"] || "";
+    const token = authHeader.startsWith("Bearer ")
+      ? authHeader.slice("Bearer ".length)
+      : null;
+    if (!token) return res.status(401).json({ error: "missing bearer token" });
+
+    const { data: userData, error: userError } = await supabase.auth.getUser(
+      token
+    );
+    if (userError) return res.status(401).json({ error: userError.message });
+
+    const { data, error } = await supabase
+      .from("tax_calculations")
+      .select("*")
+      .eq("user_id", userData.user.id)
+      .order("created_at", { ascending: false });
+
+    if (error) return res.status(400).json({ error: error.message });
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Upload 106 form and process
