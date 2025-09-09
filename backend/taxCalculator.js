@@ -2,86 +2,15 @@
 
 const path = require("path");
 
-// Yearly tax configuration (simplified; values can be refined per year)
-const YEAR_CONFIG = {
-  2019: {
-    brackets: [
-      { upTo: 75720, rate: 0.1 },
-      { upTo: 108600, rate: 0.14 },
-      { upTo: 174960, rate: 0.2 },
-      { upTo: 243120, rate: 0.31 },
-      { upTo: 505920, rate: 0.35 },
-      { upTo: Infinity, rate: 0.47 },
-    ],
-    creditPointValue: 2184,
-  },
-  2020: {
-    brackets: [
-      { upTo: 75720, rate: 0.1 },
-      { upTo: 108600, rate: 0.14 },
-      { upTo: 174960, rate: 0.2 },
-      { upTo: 243120, rate: 0.31 },
-      { upTo: 505920, rate: 0.35 },
-      { upTo: Infinity, rate: 0.47 },
-    ],
-    creditPointValue: 2184,
-  },
-  2021: {
-    brackets: [
-      { upTo: 77040, rate: 0.1 },
-      { upTo: 110880, rate: 0.14 },
-      { upTo: 178080, rate: 0.2 },
-      { upTo: 247440, rate: 0.31 },
-      { upTo: 512880, rate: 0.35 },
-      { upTo: Infinity, rate: 0.47 },
-    ],
-    creditPointValue: 2232,
-  },
-  2022: {
-    brackets: [
-      { upTo: 79200, rate: 0.1 },
-      { upTo: 113040, rate: 0.14 },
-      { upTo: 180240, rate: 0.2 },
-      { upTo: 250080, rate: 0.31 },
-      { upTo: 518400, rate: 0.35 },
-      { upTo: Infinity, rate: 0.47 },
-    ],
-    creditPointValue: 2256,
-  },
-  2023: {
-    brackets: [
-      { upTo: 81600, rate: 0.1 },
-      { upTo: 116400, rate: 0.14 },
-      { upTo: 184320, rate: 0.2 },
-      { upTo: 255840, rate: 0.31 },
-      { upTo: 531840, rate: 0.35 },
-      { upTo: Infinity, rate: 0.47 },
-    ],
-    creditPointValue: 2352,
-  },
-  2024: {
-    brackets: [
-      { upTo: 83760, rate: 0.1 },
-      { upTo: 120960, rate: 0.14 },
-      { upTo: 194400, rate: 0.2 },
-      { upTo: 268800, rate: 0.31 },
-      { upTo: 558360, rate: 0.35 },
-      { upTo: Infinity, rate: 0.47 },
-    ],
-    creditPointValue: 2352,
-  },
-};
-
-function getConfigForYear(year) {
-  const y = Number(year);
-  if (YEAR_CONFIG[y]) return YEAR_CONFIG[y];
-  // fallback: nearest lower year, else latest
-  const years = Object.keys(YEAR_CONFIG)
-    .map(Number)
-    .sort((a, b) => a - b);
-  const lower = years.filter((n) => n <= y).pop();
-  return YEAR_CONFIG[lower || years[years.length - 1]];
-}
+// Constants
+const TAX_BRACKETS = [
+  { upTo: 83760, rate: 0.1 },
+  { upTo: 120960, rate: 0.14 },
+  { upTo: 194400, rate: 0.2 },
+  { upTo: 268800, rate: 0.31 },
+  { upTo: 558360, rate: 0.35 },
+  { upTo: Infinity, rate: 0.47 },
+];
 
 // PDF Styling Constants
 const PDF_STYLES = {
@@ -112,7 +41,7 @@ const PDF_STYLES = {
   },
 };
 
-// default credit point value will be taken from yearly config
+const CREDIT_POINT_VALUE = 2352; // Annual value per credit point (2024)
 const MIN_INCOME = 0;
 const MAX_INCOME = 10000000; // Reasonable upper limit
 const MIN_CHILDREN = 0;
@@ -157,28 +86,19 @@ function validateInput(data) {
     }
   }
 
-  // Determine tax year (last 6 completed years)
-  const currentYear = new Date().getFullYear();
-  const minYear = currentYear - 6;
-  const maxYear = currentYear - 1;
-  let taxYear = Number(data.taxYear) || maxYear;
-  if (taxYear < minYear) taxYear = minYear;
-  if (taxYear > maxYear) taxYear = maxYear;
-
   return {
     income,
     taxPaid,
     gender,
     children,
-    taxYear,
   };
 }
 
 // Calculate tax by brackets
-function calcIncomeTax(income, brackets) {
+function calcIncomeTax(income) {
   let tax = 0;
   let prev = 0;
-  for (const bracket of brackets) {
+  for (const bracket of TAX_BRACKETS) {
     if (income > prev) {
       const taxableInThisBracket = Math.min(income - prev, bracket.upTo - prev);
       tax += taxableInThisBracket * bracket.rate;
@@ -238,7 +158,6 @@ function calculateTax(data) {
   try {
     // Validate and normalize input
     const validatedData = validateInput(data);
-    const cfg = getConfigForYear(validatedData.taxYear);
 
     // פטור לנכה - אם אחוז נכות 40% ומעלה, פטור ממס עד תקרה (2024: 614,400 ש"ח)
     let grossTax = 0;
@@ -251,14 +170,11 @@ function calculateTax(data) {
         validatedData.income,
         disabilityExemptionCap
       );
-      disabilityExemption = calcIncomeTax(exemptIncome, cfg.brackets);
-      grossTax = calcIncomeTax(
-        validatedData.income - exemptIncome,
-        cfg.brackets
-      );
+      disabilityExemption = calcIncomeTax(exemptIncome);
+      grossTax = calcIncomeTax(validatedData.income - exemptIncome);
     } else {
       // חישוב רגיל
-      grossTax = calcIncomeTax(validatedData.income, cfg.brackets);
+      grossTax = calcIncomeTax(validatedData.income);
     }
 
     // חישוב פטור לחייל/ת משוחרר/ת
@@ -267,11 +183,8 @@ function calculateTax(data) {
       // פטור ממס ל-36 חודשים ראשונים עד תקרה של 186,000 ש"ח (נכון ל-2024)
       const exemptionCap = 186000;
       const exemptIncome = Math.min(validatedData.income, exemptionCap);
-      armyExemption = calcIncomeTax(exemptIncome, cfg.brackets);
-      grossTax = calcIncomeTax(
-        validatedData.income - exemptIncome,
-        cfg.brackets
-      );
+      armyExemption = calcIncomeTax(exemptIncome);
+      grossTax = calcIncomeTax(validatedData.income - exemptIncome);
     }
 
     // ודא שאין חפיפה בין ילדים מתחת ל-6 לסך הילדים
@@ -287,37 +200,17 @@ function calculateTax(data) {
       children,
       childrenUnder6,
     });
-    const creditValue = creditPoints * cfg.creditPointValue;
+    const creditValue = creditPoints * CREDIT_POINT_VALUE;
     const netTax = Math.max(0, grossTax - creditValue);
     const refund = validatedData.taxPaid - netTax;
 
-    // Consistency checks -> warnings
-    const warnings = [];
-    if (
-      validatedData.income > 0 &&
-      validatedData.taxPaid > validatedData.income * 0.6
-    ) {
-      warnings.push("סכום המס ששולם גבוה מהרגיל ביחס להכנסה. נא לוודא ערכים.");
-    }
-    if (
-      data.birthYear &&
-      String(data.birthYear) === String(validatedData.taxYear)
-    ) {
-      warnings.push("שנת לידה זהה לשנת המס – ייתכן זיהוי שגוי של שדה.");
-    }
-    if (childrenUnder6 > children) {
-      warnings.push(
-        "מספר ילדים מתחת ל-6 גדול ממספר הילדים הכולל – תוקן אוטומטית."
-      );
-    }
-
     // Prepare detailed explanation
     const explanation = [
-      `חישוב מס הכנסה לשנת ${validatedData.taxYear}:`,
+      "חישוב מס הכנסה לשנת 2024:",
       `הכנסה שנתית: ${validatedData.income.toLocaleString()} ₪`,
       `מס גולמי: ${grossTax.toLocaleString()} ₪`,
       `נקודות זיכוי: ${creditPoints.toFixed(2)}`,
-      `ערך נקודות זיכוי: ${creditValue.toLocaleString()} ₪ (שווי נק' לשנה: ${cfg.creditPointValue.toLocaleString()} ₪)`,
+      `ערך נקודות זיכוי: ${creditValue.toLocaleString()} ₪`,
       `מס נטו: ${netTax.toLocaleString()} ₪`,
       `מס ששולם: ${validatedData.taxPaid.toLocaleString()} ₪`,
       refund >= 0
@@ -355,8 +248,7 @@ function calculateTax(data) {
       isArmyService: data.isArmyService,
       isNationalService: data.isNationalService,
       yearsSinceAliyah: data.yearsSinceAliyah,
-      taxYear: String(validatedData.taxYear),
-      warnings,
+      taxYear: "2024",
       calculationDetails: {
         income: validatedData.income,
         grossTax,

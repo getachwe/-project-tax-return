@@ -17,6 +17,14 @@ SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 ```
 MAILTRAP_USER=your_mailtrap_username
 MAILTRAP_PASS=your_mailtrap_password
+
+# OR real SMTP (e.g., Gmail with App Password)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=465
+SMTP_SECURE=true
+SMTP_USER=your_gmail_address@gmail.com
+SMTP_PASS=your_app_password
+SMTP_FROM="Your Name <your_gmail_address@gmail.com>"
 ```
 
 ### Server Configuration
