@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { Calculator } from "lucide-react";
+import { Calculator, ChevronDown, History, LogOut, User } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { Dialog } from "@headlessui/react";
 import { AuthPanel } from "./AuthPanel";
 
@@ -7,11 +8,46 @@ export const Header: React.FC = () => {
   const [openDialog, setOpenDialog] = useState<
     null | "help" | "about" | "auth"
   >(null);
+  const [loginToast, setLoginToast] = useState<string | null>(null);
   useEffect(() => {
-    const hasToken = new URLSearchParams(location.hash.replace(/^#/, "")).get(
-      "access_token"
-    );
-    if (hasToken) setOpenDialog("auth");
+    // Handle Supabase redirect params from email links
+    try {
+      const params = new URLSearchParams(location.hash.replace(/^#/, ""));
+      const access = params.get("access_token");
+      const type = params.get("type");
+      if (access) {
+        // Save session token and treat as logged in for confirmation/magic links
+        localStorage.setItem("authToken", access);
+        // notify listeners (Header AuthStatus listens to storage)
+        window.dispatchEvent(new StorageEvent("storage"));
+        // show small toast
+        try {
+          const payload = JSON.parse(
+            atob(
+              (access.split(".")[1] || "").replace(/-/g, "+").replace(/_/g, "/")
+            )
+          );
+          const email = payload?.email ? String(payload.email) : "";
+          if (email && type !== "recovery") {
+            setLoginToast(`מחובר כ־${email}`);
+            setTimeout(() => setLoginToast(null), 2500);
+          }
+        } catch {
+          // ignore jwt parse errors
+        }
+        // For password recovery keep dialog open; otherwise close
+        if (type === "recovery") {
+          setOpenDialog("auth");
+        } else {
+          setOpenDialog(null);
+        }
+        // Clean the hash from URL
+        history.replaceState(null, "", location.pathname + location.search);
+      }
+    } catch {
+      // ignore parsing errors for URL hash params
+    }
+
     const close = () => setOpenDialog(null);
     window.addEventListener("auth:loggedIn", close);
     window.addEventListener("auth:loggedOut", close);
@@ -20,8 +56,26 @@ export const Header: React.FC = () => {
       window.removeEventListener("auth:loggedOut", close);
     };
   }, []);
+
+  // If dialog opened while already logged-in, close it immediately
+  useEffect(() => {
+    if (openDialog === "auth") {
+      try {
+        // If there is a valid token, auto-close the auth dialog
+        const token = localStorage.getItem("authToken");
+        if (token) setOpenDialog(null);
+      } catch {
+        // ignore
+      }
+    }
+  }, [openDialog]);
   return (
     <header className="bg-white border-b border-gray-200">
+      {loginToast && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-4 py-2 rounded-full shadow z-[60]">
+          {loginToast}
+        </div>
+      )}
       <div className="max-w-7xl mx-auto py-3 px-4 sm:px-8 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Calculator className="h-7 w-7 text-blue-600" />
@@ -50,8 +104,9 @@ export const Header: React.FC = () => {
               </button>
             </li>
             <li>
-              <AuthStatus onOpen={() => setOpenDialog("auth")} />
+              <AuthStatus />
             </li>
+            {/* הוסר קישור היסטוריה מפה; קיים בתפריט המשתמש */}
           </ul>
         </nav>
       </div>
@@ -140,11 +195,18 @@ export const Header: React.FC = () => {
         <div className="fixed inset-0 flex items-center justify-center p-4">
           <Dialog.Panel className="w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl border border-gray-100">
             <Dialog.Title className="text-xl font-bold mb-2 text-center text-blue-700">
-              {new URLSearchParams(location.hash.replace(/^#/, "")).get(
-                "access_token"
-              )
-                ? "איפוס סיסמה"
-                : "כניסה למערכת"}
+              {(() => {
+                try {
+                  const p = new URLSearchParams(
+                    location.hash.replace(/^#/, "")
+                  );
+                  return p.get("type") === "recovery"
+                    ? "איפוס סיסמה"
+                    : "כניסה למערכת";
+                } catch {
+                  return "כניסה למערכת";
+                }
+              })()}
             </Dialog.Title>
             <AuthPanel />
             <div className="flex justify-center mt-4">
@@ -162,7 +224,8 @@ export const Header: React.FC = () => {
   );
 };
 
-const AuthStatus: React.FC<{ onOpen: () => void }> = ({ onOpen }) => {
+const AuthStatus: React.FC = () => {
+  const navigate = useNavigate();
   const [token, setToken] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [open, setOpen] = useState(false);
@@ -183,26 +246,37 @@ const AuthStatus: React.FC<{ onOpen: () => void }> = ({ onOpen }) => {
     const t = localStorage.getItem("authToken");
     setToken(t);
     setEmail(getEmailFromToken(t));
+
     const onStorage = () => {
       const nt = localStorage.getItem("authToken");
       setToken(nt);
       setEmail(getEmailFromToken(nt));
     };
+
+    const onLoggedIn = () => {
+      const nt = localStorage.getItem("authToken");
+      setToken(nt);
+      setEmail(getEmailFromToken(nt));
+    };
+
+    const onLoggedOut = () => {
+      setToken(null);
+      setEmail("");
+    };
+
     window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
+    window.addEventListener("auth:loggedIn", onLoggedIn);
+    window.addEventListener("auth:loggedOut", onLoggedOut);
+
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("auth:loggedIn", onLoggedIn);
+      window.removeEventListener("auth:loggedOut", onLoggedOut);
+    };
   }, []);
 
-  if (!token) {
-    return (
-      <button
-        type="button"
-        onClick={onOpen}
-        className="text-gray-600 hover:text-blue-600 font-normal transition-colors duration-200"
-      >
-        התחברות
-      </button>
-    );
-  }
+  // כאשר אין טוקן לא מציגים כלום (הכניסה מתבצעת בעמוד הראשי)
+  if (!token) return null;
 
   return (
     <div className="relative">
@@ -212,21 +286,40 @@ const AuthStatus: React.FC<{ onOpen: () => void }> = ({ onOpen }) => {
         className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-100 text-gray-800 hover:bg-gray-200 transition"
         title={email}
       >
-        <span className="inline-block h-6 w-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center">
-          {email?.[0]?.toUpperCase() || "U"}
+        <User className="h-5 w-5 text-blue-600" />
+        <span className="text-sm">החשבון שלי</span>
+        <span className="text-sm max-w-[12rem] truncate hidden sm:inline">
+          {email}
         </span>
-        <span className="text-sm max-w-[12rem] truncate">{email}</span>
+        <ChevronDown className="w-4 h-4 text-gray-500" />
       </button>
       {open && (
-        <div className="absolute left-0 mt-2 w-44 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden z-50">
+        <div className="absolute left-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden z-50">
+          <div className="px-4 py-2 border-b border-gray-100">
+            <p className="text-xs text-gray-500">מחובר כ:</p>
+            <p className="text-sm font-medium text-gray-800 truncate">
+              {email}
+            </p>
+          </div>
           <button
-            className="w-full text-right px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+            className="w-full text-right px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3"
+            onClick={() => {
+              setOpen(false);
+              navigate("/history");
+            }}
+          >
+            <History className="h-4 w-4 text-blue-600" />
+            היסטוריה
+          </button>
+          <button
+            className="w-full text-right px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3"
             onClick={() => {
               localStorage.removeItem("authToken");
               setOpen(false);
               window.dispatchEvent(new StorageEvent("storage"));
             }}
           >
+            <LogOut className="h-4 w-4 text-red-600" />
             התנתק
           </button>
         </div>

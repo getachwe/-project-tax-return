@@ -9,10 +9,10 @@ export const Calculator: React.FC = () => {
   const { currentStep } = useTaxCalculator();
 
   return (
-    <div className="w-full max-w-2xl mx-auto my-10">
-      <div className="card">
+    <div className="w-full max-w-2xl lg:max-w-7xl mx-auto px-4 sm:px-6 lg:px-12">
+      <div className="card-enhanced">
         <ProgressSteps />
-        <div className="mt-8">
+        <div className="mt-6 px-2">
           {currentStep === 1 && <UploadForm />}
           {currentStep === 2 && <ManualForm />}
           {currentStep === 3 && <ResultsDisplay />}

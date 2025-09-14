@@ -45,8 +45,10 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
   disabled = false,
   readOnly = false,
 }) => {
+  const Container: React.ElementType = onSubmit ? "form" : "div";
+  const containerProps: any = onSubmit ? { onSubmit } : {};
   return (
-    <form onSubmit={onSubmit} className={`space-y-2 ${className}`}>
+    <Container {...containerProps} className={`space-y-2 ${className}`}>
       {fields.map((field) => (
         <DynamicField
           key={field.id}
@@ -76,12 +78,12 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
       {onSubmit && (
         <button
           type="submit"
-          className="btn btn-primary w-full mt-4"
+          className="btn-primary w-full mt-6 py-3 text-base font-medium"
           disabled={disabled}
         >
           {submitLabel}
         </button>
       )}
-    </form>
+    </Container>
   );
 };

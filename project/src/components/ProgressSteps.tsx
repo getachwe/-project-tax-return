@@ -6,14 +6,44 @@ export const ProgressSteps: React.FC = () => {
   const { currentStep } = useTaxCalculator();
 
   const steps = [
-    { id: 1, name: "העלאת טופס", icon: Upload },
-    { id: 2, name: "השלמת מידע", icon: Pencil },
-    { id: 3, name: "תוצאות", icon: BarChart },
+    { id: 1, name: "העלאת טופס", icon: Upload, color: "blue" },
+    { id: 2, name: "השלמת מידע", icon: Pencil, color: "purple" },
+    { id: 3, name: "תוצאות", icon: BarChart, color: "emerald" },
   ];
 
+  const getStepColors = (
+    _step: { color: string },
+    isActive: boolean,
+    isCompleted: boolean
+  ) => {
+    if (isCompleted) return "bg-green-500 text-white shadow-lg";
+    if (isActive) {
+      return "bg-blue-600 text-white shadow-lg ring-4 ring-blue-200";
+    }
+    return "bg-gray-200 text-gray-500";
+  };
+
+  const getTextColor = (_step: { color: string }, isActive: boolean) => {
+    if (isActive) {
+      return "font-bold text-blue-700";
+    }
+    return "text-gray-500";
+  };
+
   return (
-    <div className="relative">
-      <div className="overflow-hidden">
+    <div className="relative bg-gray-50 rounded-2xl p-8 mb-8">
+      <div className="relative">
+        {/* Progress Line - positioned to center with circles */}
+        <div className="absolute top-8 left-0 right-0 h-1 bg-gray-200 rounded-full">
+          <div
+            className="absolute top-0 h-full bg-blue-500 rounded-full transition-all duration-700"
+            style={{
+              width: `${((currentStep - 1) / (steps.length - 1)) * 100}%`,
+            }}
+          />
+        </div>
+
+        {/* Steps */}
         <div className="relative flex items-center justify-between">
           {steps.map((step) => {
             const isActive = step.id === currentStep;
@@ -24,41 +54,53 @@ export const ProgressSteps: React.FC = () => {
               <div
                 key={step.id}
                 className={`flex flex-col items-center relative z-10 ${
-                  isActive ? "scale-110 transition-transform duration-300" : ""
+                  isActive
+                    ? "scale-110 transition-all duration-500"
+                    : "transition-all duration-300"
                 }`}
               >
                 <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                  className={`w-16 h-16 rounded-full flex items-center justify-center ${getStepColors(
+                    step,
+                    isActive,
                     isCompleted
-                      ? "bg-success-500 text-white"
-                      : isActive
-                      ? "bg-blue-700 text-white"
-                      : "bg-gray-200 text-gray-500"
-                  } transition-colors duration-300`}
+                  )} transition-all duration-500 relative`}
                 >
-                  {isCompleted ? <Check size={20} /> : <Icon size={20} />}
+                  <div className="flex items-center justify-center w-full h-full">
+                    {isCompleted ? (
+                      <Check size={24} />
+                    ) : (
+                      <div className="flex flex-col items-center justify-center">
+                        <span className="text-xs font-bold mb-1">
+                          {step.id}
+                        </span>
+                        <Icon size={18} />
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <p
-                  className={`mt-2 text-sm ${
-                    isActive ? "font-bold text-blue-700" : "text-gray-500"
-                  } leading-[1.6] antialiased rtl text-center pr-1`}
+                  className={`mt-3 text-sm ${getTextColor(
+                    step,
+                    isActive
+                  )} leading-[1.6] antialiased text-center transition-all duration-300`}
                   dir="rtl"
+                  title={
+                    step.id === 1
+                      ? "העלאת טופס 106"
+                      : step.id === 2
+                      ? "השלמת מידע"
+                      : "תוצאות"
+                  }
                 >
                   {step.name}
                 </p>
+                {isActive && (
+                  <div className="absolute -bottom-2 w-2 h-2 bg-current rounded-full animate-pulse-gentle" />
+                )}
               </div>
             );
           })}
-        </div>
-
-        {/* Progress Line */}
-        <div className="absolute top-5 left-0 right-0 h-0.5 bg-gray-200">
-          <div
-            className="absolute top-0 h-full bg-blue-700 transition-all duration-500"
-            style={{
-              width: `${((currentStep - 1) / (steps.length - 1)) * 100}%`,
-            }}
-          />
         </div>
       </div>
     </div>

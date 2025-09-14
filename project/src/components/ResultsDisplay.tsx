@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useTaxCalculator } from "../context/TaxCalculatorContext";
 import { Dialog } from "@headlessui/react";
+import { apiCreateReport } from "../utils/api";
 
 export const ResultsDisplay: React.FC = () => {
   const { taxData, goToPreviousStep } = useTaxCalculator();
@@ -13,6 +14,10 @@ export const ResultsDisplay: React.FC = () => {
     null | "success" | "error" | "loading"
   >(null);
   const [emailError, setEmailError] = useState("");
+  // Track background auto-save in a ref (no re-render needed)
+  const saveStatusRef = useRef<null | "idle" | "saving" | "saved" | "error">(
+    null
+  );
 
   useEffect(() => {
     setLoading(true);
@@ -23,10 +28,32 @@ export const ResultsDisplay: React.FC = () => {
       body: JSON.stringify(taxData),
     })
       .then((res) => res.json())
-      .then((data) => {
+      .then(async (data) => {
         setResult(data);
         setLoading(false);
         console.log("Backend result:", data);
+        // Auto-save report for logged-in users
+        try {
+          const token = localStorage.getItem("authToken");
+          if (token) {
+            saveStatusRef.current = "saving";
+            const fileName = undefined;
+            const year = (taxData as Record<string, unknown>).taxYear as
+              | number
+              | undefined;
+            await apiCreateReport(token, {
+              taxData,
+              calculationResult: data,
+              fileName,
+              year,
+            });
+            saveStatusRef.current = "saved";
+          } else {
+            saveStatusRef.current = "idle";
+          }
+        } catch {
+          saveStatusRef.current = "error";
+        }
       })
       .catch(() => {
         setError("שגיאה בחישוב המס");

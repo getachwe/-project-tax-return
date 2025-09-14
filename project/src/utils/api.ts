@@ -82,3 +82,57 @@ export async function apiDeleteMyData(token: string, deleteAccount = false): Pro
 }
 
 
+// Reports API
+export type ReportItem = {
+  id: string;
+  file_name: string;
+  year: number | null;
+  created_at: string;
+};
+
+export async function apiGetReports(
+  token: string,
+  opts: { year?: number; q?: string; page?: number; pageSize?: number } = {}
+): Promise<{ items: ReportItem[]; total: number; page: number; pageSize: number }> {
+  const params = new URLSearchParams();
+  if (opts.year) params.set("year", String(opts.year));
+  if (opts.q) params.set("q", opts.q);
+  if (opts.page) params.set("page", String(opts.page));
+  if (opts.pageSize) params.set("pageSize", String(opts.pageSize));
+  const res = await fetch(`${BASE_URL}/api/reports?${params.toString()}`, {
+    headers: { ...getAuthHeader(token) },
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function apiCreateReport(
+  token: string,
+  payload: { taxData: any; calculationResult?: any; fileName?: string; year?: number }
+): Promise<ReportItem> {
+  const res = await fetch(`${BASE_URL}/api/reports`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getAuthHeader(token) },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function apiGetReportDownloadUrl(token: string, id: string): Promise<{ url: string }> {
+  const res = await fetch(`${BASE_URL}/api/reports/${id}/download`, {
+    headers: { ...getAuthHeader(token) },
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function apiDeleteReport(token: string, id: string): Promise<{ success: boolean }> {
+  const res = await fetch(`${BASE_URL}/api/reports/${id}`, {
+    method: "DELETE",
+    headers: { ...getAuthHeader(token) },
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
