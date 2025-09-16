@@ -1,6 +1,6 @@
 import React from "react";
 import { useTaxCalculator } from "../context/TaxCalculatorContext";
-import { UploadForm } from "./UploadForm";
+import { UploadForm } from "./features/upload/UploadForm";
 import { ManualForm } from "./ManualForm";
 import { ResultsDisplay } from "./ResultsDisplay";
 import { ProgressSteps } from "./ProgressSteps";

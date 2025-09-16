@@ -5,7 +5,7 @@ import { HistoryPage } from "./components/HistoryPage";
 import { Header } from "./components/Header";
 import { Footer } from "./components/Footer";
 import { TaxCalculatorProvider } from "./context/TaxCalculatorContext";
-import { AuthPanel } from "./components/AuthPanel";
+import { AuthPanel } from "./components/auth/AuthPanel";
 
 // Session timeout duration in milliseconds (30 minutes)
 const SESSION_TIMEOUT = 30 * 60 * 1000;

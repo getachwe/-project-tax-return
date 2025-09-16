@@ -18,7 +18,7 @@ project/.env
 
 # OS/IDE
 .DS_Store
-Thumbs.db
+Thumbs.db 
 .vscode/
 .idea/
 
@@ -28,3 +28,6 @@ Thumbs.db
 *.tmp
 *.swp
 '@ | Out-File -Encoding utf8 .gitignore
+FEATURES_PLAN1.md
+FEATURES_PLAN2.md
+FEATURES_PLAN3.md

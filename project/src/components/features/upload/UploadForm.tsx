@@ -1,0 +1,253 @@
+import React, { useState } from "react";
+import { Upload, Pencil, ArrowRight } from "lucide-react";
+import { useTaxCalculator } from "../../../context/TaxCalculatorContext";
+import { UploadDropzone } from "./UploadDropzone";
+import { UploadTips } from "./UploadTips";
+import { UploadProgress } from "./UploadProgress";
+import { MissingDataForm } from "./MissingDataForm";
+import Toast from "../../Toast";
+
+export const UploadForm: React.FC = () => {
+  const { goToNextStep, setTaxData } = useTaxCalculator();
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [missingFields, setMissingFields] = useState<string[] | null>(null);
+  const [extractedData, setExtractedData] = useState<Record<
+    string,
+    string | number | undefined
+  > | null>(null);
+  const [missingValues, setMissingValues] = useState<
+    Record<string, string | number>
+  >({});
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [toast, setToast] = useState<{
+    type: "success" | "error" | "info";
+    message: string;
+  } | null>(null);
+
+  const handleFileUpload = async (file: File) => {
+    setError(null);
+    setIsLoading(true);
+    setMissingFields(null);
+    setExtractedData(null);
+    setMissingValues({});
+    setSelectedFile(file);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const response = await fetch("http://localhost:4000/api/process-106", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) throw new Error("שגיאה בעיבוד הקובץ");
+
+      const result = await response.json();
+      if (!result.success) throw new Error(result.error || "שגיאה לא ידועה");
+
+      setExtractedData(result.data);
+
+      if (result.missingFields && result.missingFields.length > 0) {
+        setMissingFields(result.missingFields);
+      } else {
+        // All data extracted successfully
+        setTaxData({
+          income: Number(result.data.income) || 0,
+          taxPaid: Number(result.data.taxPaid) || 0,
+          taxCredits: Number(result.data.creditPoints) || 2.25,
+          hasFormData: true,
+          maritalStatus: result.data.maritalStatus || "single",
+          taxYear: Number(result.data.taxYear) || new Date().getFullYear() - 1,
+          gender: result.data.gender,
+          employmentType: result.data.employmentType,
+          children: Number(result.data.children) || 0,
+          birthDate: result.data.birthDate,
+          workStartDate: result.data.workStartDate,
+          workEndDate: result.data.workEndDate,
+          additionalIncome: Number(result.data.additionalIncome) || 0,
+          oldAgeAllowance: Number(result.data.oldAgeAllowance) || 0,
+          childAllowance: Number(result.data.childAllowance) || 0,
+          disabilityAllowance: Number(result.data.disabilityAllowance) || 0,
+          firstName: result.data.firstName,
+          lastName: result.data.lastName,
+          email: result.data.email,
+          phone: result.data.phone,
+          address: result.data.address,
+          city: result.data.city,
+          postalCode: result.data.postalCode,
+          ...result.data, // הוספת כל הנתונים הנוספים
+        });
+        setToast({
+          type: "success",
+          message: "הקובץ עובד בהצלחה! מעבר לחישוב התוצאות...",
+        });
+        setTimeout(() => {
+          goToNextStep();
+        }, 1500);
+      }
+    } catch (err) {
+      setError((err as Error).message);
+      setToast({ type: "error", message: (err as Error).message });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleMissingSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    console.log("handleMissingSubmit called");
+    if (!extractedData) {
+      console.log("No extractedData, returning");
+      return;
+    }
+
+    const finalData = { ...extractedData, ...missingValues };
+    console.log("Final data:", finalData);
+
+    setTaxData({
+      income: Number(finalData.income) || 0,
+      taxPaid: Number(finalData.taxPaid) || 0,
+      taxCredits: Number(finalData.creditPoints) || 2.25,
+      hasFormData: true,
+      maritalStatus: finalData.maritalStatus || "single",
+      taxYear: Number(finalData.taxYear) || new Date().getFullYear() - 1,
+      gender: finalData.gender,
+      employmentType: finalData.employmentType,
+      children: Number(finalData.children) || 0,
+      birthDate: finalData.birthDate,
+      workStartDate: finalData.workStartDate,
+      workEndDate: finalData.workEndDate,
+      additionalIncome: Number(finalData.additionalIncome) || 0,
+      oldAgeAllowance: Number(finalData.oldAgeAllowance) || 0,
+      childAllowance: Number(finalData.childAllowance) || 0,
+      disabilityAllowance: Number(finalData.disabilityAllowance) || 0,
+      firstName: finalData.firstName,
+      lastName: finalData.lastName,
+      email: finalData.email,
+      phone: finalData.phone,
+      address: finalData.address,
+      city: finalData.city,
+      postalCode: finalData.postalCode,
+      ...finalData, // הוספת כל הנתונים הנוספים
+    });
+
+    setToast({
+      type: "success",
+      message: "המידע נשמר בהצלחה! מעבר לחישוב התוצאות...",
+    });
+
+    console.log("Moving to next step...");
+    setTimeout(() => {
+      console.log("About to call goToNextStep");
+      goToNextStep();
+      console.log("goToNextStep called");
+    }, 1500);
+  };
+
+  const handleManualEntry = () => {
+    setTaxData({
+      income: 0,
+      taxPaid: 0,
+      taxCredits: 2.25,
+      hasFormData: false,
+    });
+    goToNextStep();
+  };
+
+  const handleValueChange = (id: string, value: string | number | boolean) => {
+    console.log("handleValueChange:", id, value);
+    setMissingValues((prev) => ({
+      ...prev,
+      [id]: typeof value === "boolean" ? String(value) : value,
+    }));
+  };
+
+  // If missing fields, show dynamic form
+  if (missingFields && missingFields.length > 0 && extractedData) {
+    return (
+      <>
+        <MissingDataForm
+          extractedData={extractedData}
+          missingValues={missingValues}
+          onValueChange={handleValueChange}
+          onSubmit={handleMissingSubmit}
+        />
+        {toast && (
+          <Toast
+            type={toast.type}
+            message={toast.message}
+            onClose={() => setToast(null)}
+          />
+        )}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <div className="space-y-8">
+        {/* Header */}
+        <div className="text-center">
+          <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg mx-auto mb-4">
+            <Upload className="h-8 w-8 text-white" />
+          </div>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-700 to-purple-700 bg-clip-text text-transparent mb-3">
+            העלאת טופס 106
+          </h1>
+          <p className="text-gray-600 text-lg leading-relaxed max-w-2xl mx-auto">
+            בחר/י טופס 106 או גרור/י לכאן
+          </p>
+        </div>
+
+        {/* Main Content */}
+        <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-start">
+          {/* Upload Actions */}
+          <div className="space-y-6">
+            <UploadDropzone
+              onFileUpload={handleFileUpload}
+              isLoading={isLoading}
+              selectedFile={selectedFile}
+            />
+
+            <div className="space-y-3">
+              {selectedFile && !isLoading && !missingFields && (
+                <button
+                  onClick={() => goToNextStep()}
+                  className="w-full h-12 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white rounded-xl font-medium shadow-md flex items-center justify-center gap-2 transition ease-in-out duration-200 hover:scale-[1.01]"
+                >
+                  <ArrowRight className="h-5 w-5" />
+                  המשך לשלב הבא
+                </button>
+              )}
+              <button
+                onClick={handleManualEntry}
+                className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium shadow-md flex items-center justify-center gap-2 transition ease-in-out duration-200 hover:scale-[1.01]"
+              >
+                <Pencil className="h-5 w-5" />
+                הזנה ידנית
+              </button>
+            </div>
+          </div>
+
+          {/* Tips */}
+          <div className="lg:pt-20 xl:pt-24">
+            <UploadTips />
+          </div>
+        </div>
+      </div>
+
+      {/* Progress Modal */}
+      <UploadProgress isLoading={isLoading} error={error} success={false} />
+
+      {/* Toast */}
+      {toast && (
+        <Toast
+          type={toast.type}
+          message={toast.message}
+          onClose={() => setToast(null)}
+        />
+      )}
+    </>
+  );
+};

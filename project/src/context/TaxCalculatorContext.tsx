@@ -67,7 +67,7 @@ export const TaxCalculatorProvider: React.FC<{ children: ReactNode }> = ({
           setCurrentStep(stepNum);
         }
       }
-    } catch (e) {
+    } catch {
       // ignore corrupted drafts
     }
   }, []);
@@ -76,17 +76,26 @@ export const TaxCalculatorProvider: React.FC<{ children: ReactNode }> = ({
   useEffect(() => {
     try {
       localStorage.setItem("tax_return_draft", JSON.stringify(taxData));
-    } catch (e) {}
+    } catch {
+      // ignore localStorage errors
+    }
   }, [taxData]);
 
   useEffect(() => {
     try {
       localStorage.setItem("tax_return_step", String(currentStep));
-    } catch (e) {}
+    } catch {
+      // ignore localStorage errors
+    }
   }, [currentStep]);
 
   const goToNextStep = () => {
-    setCurrentStep((prev) => Math.min(prev + 1, 3));
+    console.log("goToNextStep called, current step:", currentStep);
+    setCurrentStep((prev) => {
+      const nextStep = Math.min(prev + 1, 3);
+      console.log("Moving from step", prev, "to step", nextStep);
+      return nextStep;
+    });
   };
 
   const goToPreviousStep = () => {
@@ -99,7 +108,9 @@ export const TaxCalculatorProvider: React.FC<{ children: ReactNode }> = ({
     try {
       localStorage.removeItem("tax_return_draft");
       localStorage.removeItem("tax_return_step");
-    } catch (e) {}
+    } catch {
+      // ignore localStorage errors
+    }
   };
 
   return (

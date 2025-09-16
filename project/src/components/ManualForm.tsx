@@ -9,7 +9,7 @@ import {
   GENDER_OPTIONS,
   EMPLOYMENT_OPTIONS,
 } from "../constants/fields";
-import { DynamicForm, DynamicFormField } from "./DynamicForm";
+import { DynamicForm, DynamicFormField } from "./forms/DynamicForm";
 
 const TOOLTIP_KEYS = new Set([
   "income",
@@ -113,7 +113,16 @@ export const ManualForm: React.FC = () => {
     [taxData.hasFormData]
   );
 
-  const values = { ...taxData, ...extra };
+  const values: Record<string, string | number | undefined> = {
+    ...Object.fromEntries(
+      Object.entries(taxData)
+        .filter(([key]) => key !== "hasFormData")
+        .map(([key, value]) => [key, value as string | number | undefined])
+    ),
+    ...Object.fromEntries(
+      Object.entries(extra).map(([key, value]) => [key, String(value)])
+    ),
+  };
 
   const handleChange = (id: string, value: string | number | boolean) => {
     setShowSubmitError(false);
@@ -126,12 +135,22 @@ export const ManualForm: React.FC = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("ManualForm handleSubmit called");
+    console.log("isFormValid:", isFormValid);
+    console.log("taxData:", taxData);
+    console.log("extra:", extra);
+
     if (!isFormValid) {
+      console.log("Form not valid, showing error");
       setShowSubmitError(true);
       return;
     }
+
+    console.log("Form is valid, updating taxData and going to next step");
     setTaxData({ ...taxData, ...extra });
+    console.log("About to call goToNextStep from ManualForm");
     goToNextStep();
+    console.log("goToNextStep called from ManualForm");
   };
 
   // Simple error simulation: required fields must not be empty
@@ -199,13 +218,12 @@ export const ManualForm: React.FC = () => {
               : "אנא הזן את הנתונים הבאים כדי שנוכל לחשב את החזר המס האפשרי שלך."}
           </p>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-4">
           <DynamicForm
             fields={fields}
             values={values}
             onChange={handleChange}
-            submitLabel={undefined}
-            errors={errors}
+            onSubmit={handleSubmit}
           />
           <div className="space-y-3 mt-4 p-4 bg-blue-50 rounded-xl">
             <h3 className="text-lg font-medium text-blue-900">
@@ -228,23 +246,17 @@ export const ManualForm: React.FC = () => {
               ))}
             </div>
           </div>
-          <div className="flex flex-row justify-between mt-6 gap-4">
+
+          <div className="flex justify-center pt-4">
             <button
               type="button"
               onClick={goToPreviousStep}
-              className="btn-secondary w-1/2"
+              className="btn-secondary px-8 py-2"
             >
               חזרה
             </button>
-            <button
-              type="submit"
-              className="btn-primary w-1/2"
-              aria-disabled={!isFormValid}
-            >
-              המשך
-            </button>
           </div>
-        </form>
+        </div>
       </div>
     </>
   );

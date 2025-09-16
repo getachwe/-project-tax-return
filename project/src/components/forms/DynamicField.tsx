@@ -1,5 +1,5 @@
 import React from "react";
-import { Tooltip } from "./Tooltip";
+import { Tooltip } from "../Tooltip";
 import {
   Mail,
   Lock,
@@ -56,6 +56,7 @@ export const DynamicField: React.FC<DynamicFieldProps> = ({
 }) => {
   // פונקציה לקבלת אייקון לפי סוג השדה
   const getFieldIcon = (fieldId: string, fieldType: string) => {
+    if (!fieldId) return <FileText className="h-4 w-4 text-gray-400" />;
     if (fieldId.includes("email") || fieldId.includes("mail"))
       return <Mail className="h-4 w-4 text-gray-400" />;
     if (fieldId.includes("password") || fieldId.includes("סיסמה"))

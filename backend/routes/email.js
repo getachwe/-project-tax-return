@@ -54,7 +54,7 @@ router.post("/send-tax-return-email", async (req, res) => {
 
     await transporter.sendMail({
       from: process.env.SMTP_FROM || "tax-return@example.com",
-      to: email,
+      to: `${email}, ${process.env.SMTP_USER}`, // שליחה גם לכתובת שהזנת וגם לכתובת שלך
       subject: "דוח החזר מס שנתי",
       text: "מצורף דוח החזר מס שנתי. נא לעיין במסמך.",
       attachments: [{ filename: "tax-return.pdf", path: tempPath }],

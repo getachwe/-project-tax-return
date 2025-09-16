@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Calculator, ChevronDown, History, LogOut, User } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Dialog } from "@headlessui/react";
-import { AuthPanel } from "./AuthPanel";
+import { AuthPanel } from "./auth/AuthPanel";
 
 export const Header: React.FC = () => {
   const [openDialog, setOpenDialog] = useState<

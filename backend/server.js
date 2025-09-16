@@ -20,6 +20,8 @@ app.use("/api/calculations", require("./routes/calculations"));
 app.use("/api/process-106", require("./routes/process106"));
 app.use("/api", require("./routes/pdf"));
 app.use("/api", require("./routes/email"));
+app.use("/api", require("./routes/reports"));
+app.use("/api", require("./routes/calculate"));
 
 // Start server
 const PORT = process.env.PORT || 4000;

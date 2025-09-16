@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { AuthPanel } from "./AuthPanel";
+import { AuthPanel } from "./auth/AuthPanel";
 
 export const AuthLanding: React.FC = () => {
   const [token, setToken] = useState<string | null>(null);

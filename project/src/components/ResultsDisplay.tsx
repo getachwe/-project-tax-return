@@ -20,6 +20,7 @@ export const ResultsDisplay: React.FC = () => {
   );
 
   useEffect(() => {
+    console.log("ResultsDisplay useEffect triggered, taxData:", taxData);
     setLoading(true);
     setError(null);
     fetch("http://localhost:4000/api/calculate-tax", {
@@ -27,7 +28,10 @@ export const ResultsDisplay: React.FC = () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(taxData),
     })
-      .then((res) => res.json())
+      .then((res) => {
+        console.log("Fetch response status:", res.status);
+        return res.json();
+      })
       .then(async (data) => {
         setResult(data);
         setLoading(false);
@@ -55,7 +59,8 @@ export const ResultsDisplay: React.FC = () => {
           saveStatusRef.current = "error";
         }
       })
-      .catch(() => {
+      .catch((error) => {
+        console.error("Fetch error:", error);
         setError("שגיאה בחישוב המס");
         setLoading(false);
       });

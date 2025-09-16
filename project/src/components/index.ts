@@ -1,3 +1,3 @@
-export { DynamicForm } from './DynamicForm';
-export { DynamicField } from './DynamicField'; 
+export { DynamicForm } from './forms/DynamicForm';
+export { DynamicField } from './forms/DynamicField'; 
 export { Profile } from './Profile';
