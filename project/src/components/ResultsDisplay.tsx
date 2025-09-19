@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useTaxCalculator } from "../context/TaxCalculatorContext";
 import { Dialog } from "@headlessui/react";
 import { apiCreateReport } from "../utils/api";
 
 export const ResultsDisplay: React.FC = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const { taxData, goToPreviousStep } = useTaxCalculator();
   const [result, setResult] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(false);
@@ -14,23 +17,70 @@ export const ResultsDisplay: React.FC = () => {
     null | "success" | "error" | "loading"
   >(null);
   const [emailError, setEmailError] = useState("");
+  const [downloading, setDownloading] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   // Track background auto-save in a ref (no re-render needed)
   const saveStatusRef = useRef<null | "idle" | "saving" | "saved" | "error">(
     null
   );
 
   useEffect(() => {
-    console.log("ResultsDisplay useEffect triggered, taxData:", taxData);
+    // Check if we have pre-calculated results from history
+    const fromHistory = location.state?.fromHistory;
+    if (fromHistory && location.state?.result) {
+      setResult(location.state.result as Record<string, unknown>);
+      setLoading(false);
+      return;
+    }
+
+    // Check if we have data from calculator
+    const fromCalculator = location.state?.fromCalculator;
+    const calculatorTaxData = location.state?.taxData;
+
+    // Use data from location.state if available, otherwise use context
+    const currentTaxData = calculatorTaxData || taxData;
+
+    console.log("ResultsDisplay - fromCalculator:", fromCalculator);
+    console.log("ResultsDisplay - calculatorTaxData:", calculatorTaxData);
+    console.log("ResultsDisplay - taxData:", taxData);
+    console.log("ResultsDisplay - currentTaxData:", currentTaxData);
+
+    // Validate data before calculation
+    if (
+      !currentTaxData ||
+      !currentTaxData.income ||
+      !currentTaxData.taxPaid ||
+      !currentTaxData.taxYear
+    ) {
+      console.log("Missing required data:", {
+        income: currentTaxData?.income,
+        taxPaid: currentTaxData?.taxPaid,
+        taxYear: currentTaxData?.taxYear,
+      });
+      setError(
+        "חסרים נתונים חיוניים לחישוב המס. אנא חזור לשלב הקודם ומלא את השדות הנדרשים."
+      );
+      setLoading(false);
+      return;
+    }
+
+    console.log(
+      "ResultsDisplay useEffect triggered, currentTaxData:",
+      currentTaxData
+    );
     setLoading(true);
     setError(null);
     fetch("http://localhost:4000/api/calculate-tax", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(taxData),
+      body: JSON.stringify(currentTaxData),
     })
-      .then((res) => {
-        console.log("Fetch response status:", res.status);
-        return res.json();
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || "שגיאה בחישוב המס");
+        }
+        return data;
       })
       .then(async (data) => {
         setResult(data);
@@ -41,30 +91,57 @@ export const ResultsDisplay: React.FC = () => {
           const token = localStorage.getItem("authToken");
           if (token) {
             saveStatusRef.current = "saving";
-            const fileName = undefined;
-            const year = (taxData as Record<string, unknown>).taxYear as
-              | number
-              | undefined;
-            await apiCreateReport(token, {
-              taxData,
-              calculationResult: data,
-              fileName,
-              year,
-            });
-            saveStatusRef.current = "saved";
+            console.log(
+              "Auto-saving report with currentTaxData:",
+              currentTaxData
+            );
+            console.log("Calculation result:", data);
+
+            // Generate PDF and save to storage
+            const response = await fetch(
+              "http://localhost:4000/api/generate-pdf",
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                  ...currentTaxData,
+                  ...data, // Include calculation results
+                  saveToStorage: true,
+                }),
+              }
+            );
+
+            if (response.ok) {
+              console.log("Report saved successfully!");
+              const reportId = response.headers.get("X-Report-ID");
+              if (reportId) {
+                console.log("Report ID:", reportId);
+              }
+              saveStatusRef.current = "saved";
+            } else {
+              console.error("Failed to save report:", response.status);
+              const errorText = await response.text();
+              console.error("Error details:", errorText);
+              saveStatusRef.current = "error";
+            }
           } else {
+            console.log("No token found, not saving report");
             saveStatusRef.current = "idle";
           }
-        } catch {
+        } catch (error) {
+          console.error("Error saving report:", error);
           saveStatusRef.current = "error";
         }
       })
       .catch((error) => {
         console.error("Fetch error:", error);
-        setError("שגיאה בחישוב המס");
+        setError(error.message || "שגיאה בחישוב המס");
         setLoading(false);
       });
-  }, [taxData]);
+  }, [taxData, location.state, currentTaxData]);
 
   if (loading)
     return (
@@ -100,7 +177,7 @@ export const ResultsDisplay: React.FC = () => {
     <div className="space-y-6 animate-fade-in">
       <div className="mb-4 p-4 bg-blue-50 rounded-xl shadow-sm">
         <div className="font-bold mb-2 text-blue-900">
-          {taxData.hasFormData
+          {currentTaxData.hasFormData
             ? "הנתונים שחולצו מהטופס 106:"
             : "הנתונים שהוזנו ידנית:"}
         </div>
@@ -140,7 +217,14 @@ export const ResultsDisplay: React.FC = () => {
         <div className="flex gap-2 w-full sm:w-auto">
           <button
             type="button"
-            onClick={goToPreviousStep}
+            onClick={() => {
+              const fromHistory = location.state?.fromHistory;
+              if (fromHistory) {
+                navigate("/history");
+              } else {
+                goToPreviousStep();
+              }
+            }}
             className="btn-secondary w-full sm:w-auto"
           >
             חזרה
@@ -156,47 +240,68 @@ export const ResultsDisplay: React.FC = () => {
         <div className="flex gap-2 w-full sm:w-auto">
           <button
             type="button"
-            className="btn-secondary w-full sm:w-auto"
+            className="btn-secondary w-full sm:w-auto flex items-center gap-2 disabled:opacity-50"
+            disabled={downloading}
             onClick={async () => {
-              const response = await fetch(
-                "http://localhost:4000/api/generate-tax-return-pdf",
-                {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify(taxData),
+              setDownloading(true);
+              try {
+                const token = localStorage.getItem("authToken");
+                const response = await fetch(
+                  "http://localhost:4000/api/generate-pdf",
+                  {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                    },
+                    body: JSON.stringify({
+                      ...currentTaxData,
+                      ...result, // Include calculation results
+                      saveToStorage: false, // Don't save again, just download
+                    }),
+                  }
+                );
+                if (!response.ok) {
+                  setError("שגיאה ביצירת ה-PDF בשרת");
+                  return;
                 }
-              );
-              if (!response.ok) {
-                setError("שגיאה ביצירת ה-PDF בשרת");
-                return;
+                const disp = response.headers.get("Content-Disposition") || "";
+                const match = disp.match(/filename\s*=\s*"?([^";]+)"?/i);
+                const serverName = match ? match[1] : null;
+                const td = currentTaxData as Record<string, unknown>;
+                const year = String(td.taxYear ?? "");
+                const full = [td.firstName, td.lastName]
+                  .filter(Boolean)
+                  .map((v) => String(v))
+                  .join(" ");
+                const fallbackName = (
+                  full || String(td.employeeName ?? td.name ?? "tax-return")
+                )
+                  .replace(/[^\u0590-\u05FF\w\s-]/g, "")
+                  .replace(/\s+/g, "_");
+                const filename = serverName || `${fallbackName}-${year}.pdf`;
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.href = url;
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(url);
+              } finally {
+                setDownloading(false);
               }
-              const disp = response.headers.get("Content-Disposition") || "";
-              const match = disp.match(/filename\s*=\s*"?([^";]+)"?/i);
-              const serverName = match ? match[1] : null;
-              const td = taxData as Record<string, unknown>;
-              const year = String(td.taxYear ?? "");
-              const full = [td.firstName, td.lastName]
-                .filter(Boolean)
-                .map((v) => String(v))
-                .join(" ");
-              const fallbackName = (
-                full || String(td.employeeName ?? td.name ?? "tax-return")
-              )
-                .replace(/[^\u0590-\u05FF\w\s-]/g, "")
-                .replace(/\s+/g, "_");
-              const filename = serverName || `${fallbackName}-${year}.pdf`;
-              const blob = await response.blob();
-              const url = window.URL.createObjectURL(blob);
-              const link = document.createElement("a");
-              link.href = url;
-              link.download = filename;
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
-              window.URL.revokeObjectURL(url);
             }}
           >
-            שמור PDF
+            {downloading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                מוריד...
+              </>
+            ) : (
+              "שמור PDF"
+            )}
           </button>
           <button
             type="button"
@@ -226,17 +331,30 @@ export const ResultsDisplay: React.FC = () => {
                 setEmailStatus("loading");
                 setEmailError("");
                 try {
+                  const token = localStorage.getItem("authToken");
                   const res = await fetch(
                     "http://localhost:4000/api/send-tax-return-email",
                     {
                       method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ taxData, email }),
+                      headers: {
+                        "Content-Type": "application/json",
+                        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                      },
+                      body: JSON.stringify({
+                        taxData: { ...currentTaxData, ...result },
+                        email,
+                        calculationResult: result,
+                      }),
                     }
                   );
                   const data = await res.json();
                   if (data.success) {
                     setEmailStatus("success");
+                    setIsEmailModalOpen(false);
+                    setShowSuccessModal(true);
+                    setTimeout(() => {
+                      setShowSuccessModal(false);
+                    }, 2000);
                   } else {
                     setEmailStatus("error");
                     setEmailError(data.error || "שליחה נכשלה");
@@ -290,6 +408,43 @@ export const ResultsDisplay: React.FC = () => {
           </Dialog.Panel>
         </div>
       </Dialog>
+
+      {/* Success Modal */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <div className="text-center">
+              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg
+                  className="w-6 h-6 text-green-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                הדוח נשלח בהצלחה!
+              </h3>
+              <p className="text-gray-600 mb-4">
+                הדוח נשלח לכתובת המייל שציינת
+              </p>
+              <button
+                onClick={() => setShowSuccessModal(false)}
+                className="btn-primary"
+              >
+                אישור
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

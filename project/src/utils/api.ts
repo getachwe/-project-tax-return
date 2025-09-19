@@ -88,6 +88,8 @@ export type ReportItem = {
   file_name: string;
   year: number | null;
   created_at: string;
+  taxData?: Record<string, unknown>;
+  calculationResult?: Record<string, unknown>;
 };
 
 export async function apiGetReports(
@@ -121,6 +123,14 @@ export async function apiCreateReport(
 
 export async function apiGetReportDownloadUrl(token: string, id: string): Promise<{ url: string }> {
   const res = await fetch(`${BASE_URL}/api/reports/${id}/download`, {
+    headers: { ...getAuthHeader(token) },
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function apiGetReportViewUrl(token: string, id: string): Promise<{ url: string }> {
+  const res = await fetch(`${BASE_URL}/api/reports/${id}/view`, {
     headers: { ...getAuthHeader(token) },
   });
   if (!res.ok) throw new Error(await res.text());

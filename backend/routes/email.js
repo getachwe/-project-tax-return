@@ -8,11 +8,16 @@ const { generateTaxPDFHtml } = require("../pdfGeneratorHtml");
 
 router.post("/send-tax-return-email", async (req, res) => {
   try {
+    console.log("=== Email Request ===");
+    console.log("Body:", JSON.stringify(req.body, null, 2));
+
     const { taxData, email } = req.body;
-    if (!email || !taxData)
+    if (!email || !taxData) {
+      console.log("Missing email or taxData");
       return res
         .status(400)
         .json({ success: false, error: "חסר מייל או נתונים" });
+    }
 
     const hasGenericSmtp =
       process.env.SMTP_HOST &&

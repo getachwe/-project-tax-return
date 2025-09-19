@@ -38,7 +38,9 @@ router.get("/reports", async (req, res) => {
 
     let query = service
       .from("reports")
-      .select("id,file_name,year,created_at", { count: "exact" })
+      .select("id,file_name,year,created_at,tax_data,calculation_result", {
+        count: "exact",
+      })
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .range(from, to);
@@ -157,6 +159,32 @@ router.get("/reports/:id/download", async (req, res) => {
       .createSignedUrl(report.storage_path, 60 * 5, {
         download: report.file_name,
       });
+    if (signError) return res.status(400).json({ error: signError.message });
+    res.json({ url: signed.signedUrl });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/reports/:id/view  => returns signed URL for viewing (inline)
+router.get("/reports/:id/view", async (req, res) => {
+  try {
+    const { user, error } = await getUserFromRequest(req);
+    if (error) return res.status(error.status).json({ error: error.message });
+    const service = await getSupabaseServiceClient();
+
+    const { data: report, error: fetchError } = await service
+      .from("reports")
+      .select("id,storage_path,user_id,file_name")
+      .eq("id", req.params.id)
+      .single();
+    if (fetchError) return res.status(404).json({ error: "report not found" });
+    if (report.user_id !== user.id)
+      return res.status(403).json({ error: "forbidden" });
+
+    const { data: signed, error: signError } = await service.storage
+      .from("reports")
+      .createSignedUrl(report.storage_path, 60 * 5);
     if (signError) return res.status(400).json({ error: signError.message });
     res.json({ url: signed.signedUrl });
   } catch (err) {

@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { Calculator } from "./components/Calculator";
 import { Routes, Route } from "react-router-dom";
 import { HistoryPage } from "./components/HistoryPage";
+import { ResultsDisplay } from "./components/ResultsDisplay";
 import { Header } from "./components/Header";
 import { Footer } from "./components/Footer";
 import { TaxCalculatorProvider } from "./context/TaxCalculatorContext";
@@ -229,6 +230,7 @@ function App() {
                 }
               />
               <Route path="/history" element={<HistoryPage />} />
+              <Route path="/results" element={<ResultsDisplay />} />
             </Routes>
           )}
         </main>
