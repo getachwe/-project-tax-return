@@ -4,7 +4,6 @@ import { useTaxCalculator } from "../context/TaxCalculatorContext";
 import {
   apiDeleteReport,
   apiGetReportDownloadUrl,
-  apiGetReportViewUrl,
   apiGetReports,
   ReportItem,
 } from "../utils/api";
@@ -70,16 +69,23 @@ export const HistoryPage: React.FC = () => {
       });
 
       // Map the items to ensure proper structure
-      const mappedItems = items.map((item: any) => ({
-        ...item,
-        taxData: item.tax_data,
-        calculationResult: item.calculation_result,
-      }));
+      const mappedItems = items.map(
+        (
+          item: ReportItem & {
+            tax_data?: Record<string, unknown>;
+            calculation_result?: Record<string, unknown>;
+          }
+        ) => ({
+          ...item,
+          taxData: item.tax_data,
+          calculationResult: item.calculation_result,
+        })
+      );
 
       setItems(mappedItems);
       setTotal(total);
-    } catch (e: any) {
-      setError(e?.message || "שגיאה בטעינת היסטוריה");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "שגיאה בטעינת היסטוריה");
     } finally {
       setLoading(false);
     }
@@ -105,8 +111,8 @@ export const HistoryPage: React.FC = () => {
     try {
       const { url } = await apiGetReportDownloadUrl(token, id);
       window.open(url, "_blank");
-    } catch (e: any) {
-      setErrorMessage(e?.message || "שגיאה בהורדה");
+    } catch (e: unknown) {
+      setErrorMessage(e instanceof Error ? e.message : "שגיאה בהורדה");
       setErrorModalOpen(true);
     } finally {
       setDownloadingIds((prev) => {
@@ -131,8 +137,8 @@ export const HistoryPage: React.FC = () => {
           },
         });
       }
-    } catch (e: any) {
-      setErrorMessage(e?.message || "שגיאה בצפייה בדוח");
+    } catch (e: unknown) {
+      setErrorMessage(e instanceof Error ? e.message : "שגיאה בצפייה בדוח");
       setErrorModalOpen(true);
     } finally {
       setViewingIds((prev) => {
@@ -154,19 +160,23 @@ export const HistoryPage: React.FC = () => {
     if (!token || !selectedItem || !emailAddress) return;
 
     setEmailStatus("loading");
+    setEmailingIds((prev) => new Set(prev).add(selectedItem.id));
     try {
-      const response = await fetch("/api/send-tax-return-email", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          taxData: selectedItem.taxData,
-          email: emailAddress,
-          reportId: selectedItem.id,
-        }),
-      });
+      const response = await fetch(
+        "http://localhost:4000/api/send-tax-return-email",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            taxData: selectedItem.taxData,
+            email: emailAddress,
+            reportId: selectedItem.id,
+          }),
+        }
+      );
 
       if (!response.ok) {
         throw new Error("שגיאה בשליחת המייל");
@@ -180,10 +190,16 @@ export const HistoryPage: React.FC = () => {
       setTimeout(() => {
         setSuccessModalOpen(false);
       }, 3000);
-    } catch (e: any) {
+    } catch (e: unknown) {
       setEmailStatus("error");
-      setErrorMessage(e?.message || "שגיאה בשליחת המייל");
+      setErrorMessage(e instanceof Error ? e.message : "שגיאה בשליחת המייל");
       setErrorModalOpen(true);
+    } finally {
+      setEmailingIds((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(selectedItem.id);
+        return newSet;
+      });
     }
   };
 
@@ -200,8 +216,8 @@ export const HistoryPage: React.FC = () => {
       setDeleteModalOpen(false);
       setItemToDelete(null);
       loadReports();
-    } catch (e: any) {
-      setErrorMessage(e?.message || "שגיאה במחיקה");
+    } catch (e: unknown) {
+      setErrorMessage(e instanceof Error ? e.message : "שגיאה במחיקה");
       setErrorModalOpen(true);
     }
   };
@@ -282,7 +298,10 @@ export const HistoryPage: React.FC = () => {
           loading={loading}
           onDownload={handleDownload}
           onViewReport={handleViewReport}
-          onDelete={handleDelete}
+          onDelete={(id: string) => {
+            const item = items.find((i) => i.id === id);
+            if (item) handleDelete(item);
+          }}
           onSendEmail={handleSendEmail}
           downloadingIds={downloadingIds}
           viewingIds={viewingIds}

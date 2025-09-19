@@ -83,6 +83,7 @@ export const UploadForm: React.FC = () => {
           message: "הקובץ עובד בהצלחה! מעבר לחישוב התוצאות...",
         });
         setTimeout(() => {
+          console.log("🚀 UploadForm calling goToNextStep");
           goToNextStep();
         }, 1500);
       }
@@ -96,16 +97,16 @@ export const UploadForm: React.FC = () => {
 
   const handleMissingSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("handleMissingSubmit called");
+    console.log("🚀 UploadForm handleMissingSubmit called");
     if (!extractedData) {
-      console.log("No extractedData, returning");
+      console.log("❌ No extractedData, returning");
       return;
     }
 
     const finalData = { ...extractedData, ...missingValues };
-    console.log("Final data:", finalData);
+    console.log("📝 Final data:", finalData);
 
-    setTaxData({
+    const newTaxData = {
       income: Number(finalData.income) || 0,
       taxPaid: Number(finalData.taxPaid) || 0,
       taxCredits: Number(finalData.creditPoints) || 2.25,
@@ -130,28 +131,35 @@ export const UploadForm: React.FC = () => {
       city: finalData.city,
       postalCode: finalData.postalCode,
       ...finalData, // הוספת כל הנתונים הנוספים
-    });
+    };
+
+    console.log("📝 Setting taxData in UploadForm:", newTaxData);
+    setTaxData(newTaxData);
 
     setToast({
       type: "success",
       message: "המידע נשמר בהצלחה! מעבר לחישוב התוצאות...",
     });
 
-    console.log("Moving to next step...");
+    console.log("🚀 Moving to next step...");
     setTimeout(() => {
-      console.log("About to call goToNextStep");
+      console.log("🚀 About to call goToNextStep");
       goToNextStep();
-      console.log("goToNextStep called");
+      console.log("✅ goToNextStep called");
     }, 1500);
   };
 
   const handleManualEntry = () => {
-    setTaxData({
+    console.log("🚀 UploadForm handleManualEntry called");
+    const manualTaxData = {
       income: 0,
       taxPaid: 0,
       taxCredits: 2.25,
       hasFormData: false,
-    });
+    };
+    console.log("📝 Setting manual taxData:", manualTaxData);
+    setTaxData(manualTaxData);
+    console.log("🚀 Calling goToNextStep from handleManualEntry");
     goToNextStep();
   };
 

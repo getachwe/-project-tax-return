@@ -90,10 +90,10 @@ export const TaxCalculatorProvider: React.FC<{ children: ReactNode }> = ({
   }, [currentStep]);
 
   const goToNextStep = () => {
-    console.log("goToNextStep called, current step:", currentStep);
+    console.log("🔄 goToNextStep called, current step:", currentStep);
     setCurrentStep((prev) => {
       const nextStep = Math.min(prev + 1, 3);
-      console.log("Moving from step", prev, "to step", nextStep);
+      console.log("🔄 Moving from step", prev, "to step", nextStep);
       return nextStep;
     });
   };
@@ -113,12 +113,17 @@ export const TaxCalculatorProvider: React.FC<{ children: ReactNode }> = ({
     }
   };
 
+  const handleSetTaxData = (newData: TaxData) => {
+    console.log("📝 setTaxData called with:", newData);
+    setTaxData(newData);
+  };
+
   return (
     <TaxCalculatorContext.Provider
       value={{
         currentStep,
         taxData,
-        setTaxData,
+        setTaxData: handleSetTaxData,
         goToNextStep,
         goToPreviousStep,
         resetCalculator,

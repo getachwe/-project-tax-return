@@ -2,12 +2,20 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useTaxCalculator } from "../context/TaxCalculatorContext";
 import { Dialog } from "@headlessui/react";
-import { apiCreateReport } from "../utils/api";
+import { CheckCircle, Sparkles, Calculator } from "lucide-react";
 
 export const ResultsDisplay: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { taxData, goToPreviousStep } = useTaxCalculator();
+
+  console.log("ResultsDisplay mounted - location.state:", location.state);
+  console.log("ResultsDisplay mounted - taxData:", taxData);
+
+  // Get current tax data from location.state or context
+  const currentTaxData = React.useMemo(() => {
+    return location.state?.taxData || taxData;
+  }, [location.state?.taxData, taxData]);
   const [result, setResult] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -25,9 +33,14 @@ export const ResultsDisplay: React.FC = () => {
   );
 
   useEffect(() => {
+    console.log("ResultsDisplay useEffect triggered");
+    console.log("location.state:", location.state);
+    console.log("taxData from context:", taxData);
+
     // Check if we have pre-calculated results from history
     const fromHistory = location.state?.fromHistory;
     if (fromHistory && location.state?.result) {
+      console.log("Using pre-calculated results from history");
       setResult(location.state.result as Record<string, unknown>);
       setLoading(false);
       return;
@@ -35,24 +48,24 @@ export const ResultsDisplay: React.FC = () => {
 
     // Check if we have data from calculator
     const fromCalculator = location.state?.fromCalculator;
-    const calculatorTaxData = location.state?.taxData;
 
-    // Use data from location.state if available, otherwise use context
-    const currentTaxData = calculatorTaxData || taxData;
-
-    console.log("ResultsDisplay - fromCalculator:", fromCalculator);
-    console.log("ResultsDisplay - calculatorTaxData:", calculatorTaxData);
-    console.log("ResultsDisplay - taxData:", taxData);
-    console.log("ResultsDisplay - currentTaxData:", currentTaxData);
+    console.log("fromCalculator:", fromCalculator);
+    console.log("currentTaxData:", currentTaxData);
 
     // Validate data before calculation
+    console.log("Validating data...");
+    console.log("currentTaxData exists:", !!currentTaxData);
+    console.log("income:", currentTaxData?.income);
+    console.log("taxPaid:", currentTaxData?.taxPaid);
+    console.log("taxYear:", currentTaxData?.taxYear);
+
     if (
       !currentTaxData ||
       !currentTaxData.income ||
       !currentTaxData.taxPaid ||
       !currentTaxData.taxYear
     ) {
-      console.log("Missing required data:", {
+      console.log("❌ Missing required data:", {
         income: currentTaxData?.income,
         taxPaid: currentTaxData?.taxPaid,
         taxYear: currentTaxData?.taxYear,
@@ -63,6 +76,8 @@ export const ResultsDisplay: React.FC = () => {
       setLoading(false);
       return;
     }
+
+    console.log("✅ Data validation passed, proceeding with calculation");
 
     console.log(
       "ResultsDisplay useEffect triggered, currentTaxData:",
@@ -151,7 +166,15 @@ export const ResultsDisplay: React.FC = () => {
     );
   if (error)
     return <div className="error-text text-center text-lg">{error}</div>;
-  if (!result) return null;
+  if (!result)
+    return (
+      <div className="text-center text-gray-600 p-8">
+        <p className="text-lg mb-4">אין נתונים להצגה</p>
+        <button onClick={() => navigate("/")} className="btn-primary">
+          חזרה לעמוד הבית
+        </button>
+      </div>
+    );
 
   const {
     income,
@@ -174,23 +197,71 @@ export const ResultsDisplay: React.FC = () => {
   const explanationStr = String(explanation);
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="mb-4 p-4 bg-blue-50 rounded-xl shadow-sm">
-        <div className="font-bold mb-2 text-blue-900">
-          {currentTaxData.hasFormData
-            ? "הנתונים שחולצו מהטופס 106:"
-            : "הנתונים שהוזנו ידנית:"}
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-6">
+      <div className="max-w-6xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center gap-3 bg-white/80 backdrop-blur-sm rounded-2xl px-8 py-4 shadow-lg border border-white/20 mb-6">
+            <Sparkles className="w-8 h-8 text-blue-600" />
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              תוצאות חישוב החזר המס
+            </h1>
+            <Sparkles className="w-8 h-8 text-purple-600" />
+          </div>
+          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            הדוח מוכן! הנה התוצאות שלך לחישוב החזר המס לשנת {currentTaxData.taxYear}
+          </p>
         </div>
-        <ul className="text-blue-900 text-sm space-y-1">
-          <li>הכנסה שנתית: {incomeNum.toLocaleString()} ₪</li>
-          <li>מס ששולם: {taxPaidNum.toLocaleString()} ₪</li>
-          <li>נקודות זיכוי: {creditPointsNum.toFixed(2)}</li>
-          <li>ערך נקודות זיכוי: {creditValueNum.toLocaleString()} ₪</li>
-          <li>מס גולמי: {grossTaxNum.toLocaleString()} ₪</li>
-          <li>מס נטו: {netTaxNum.toLocaleString()} ₪</li>
-          <li>החזר מס: {refundNum.toLocaleString()} ₪</li>
-        </ul>
-      </div>
+
+        {/* Main Results Card */}
+        <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 overflow-hidden mb-8">
+          {/* Data Source Info */}
+          <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-6 border-b border-gray-100">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                <Calculator className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-800 text-lg">
+                  {currentTaxData.hasFormData
+                    ? "הנתונים שחולצו מהטופס 106"
+                    : "הנתונים שהוזנו ידנית"}
+                </h3>
+                <p className="text-gray-600 text-sm">מקור הנתונים לחישוב</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Data Grid */}
+          <div className="p-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-2xl border border-blue-200">
+                <div className="text-blue-600 text-sm font-medium mb-2">הכנסה שנתית</div>
+                <div className="text-2xl font-bold text-blue-800">{incomeNum.toLocaleString()} ₪</div>
+              </div>
+              <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-6 rounded-2xl border border-orange-200">
+                <div className="text-orange-600 text-sm font-medium mb-2">מס ששולם</div>
+                <div className="text-2xl font-bold text-orange-800">{taxPaidNum.toLocaleString()} ₪</div>
+              </div>
+              <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-2xl border border-purple-200">
+                <div className="text-purple-600 text-sm font-medium mb-2">נקודות זיכוי</div>
+                <div className="text-2xl font-bold text-purple-800">{creditPointsNum.toFixed(2)}</div>
+              </div>
+              <div className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-2xl border border-green-200">
+                <div className="text-green-600 text-sm font-medium mb-2">ערך נקודות זיכוי</div>
+                <div className="text-2xl font-bold text-green-800">{creditValueNum.toLocaleString()} ₪</div>
+              </div>
+              <div className="bg-gradient-to-br from-red-50 to-red-100 p-6 rounded-2xl border border-red-200">
+                <div className="text-red-600 text-sm font-medium mb-2">מס גולמי</div>
+                <div className="text-2xl font-bold text-red-800">{grossTaxNum.toLocaleString()} ₪</div>
+              </div>
+              <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-6 rounded-2xl border border-gray-200">
+                <div className="text-gray-600 text-sm font-medium mb-2">מס נטו</div>
+                <div className="text-2xl font-bold text-gray-800">{netTaxNum.toLocaleString()} ₪</div>
+              </div>
+            </div>
+          </div>
+        </div>
       <div
         className={`p-6 rounded-xl text-center shadow-md border transition-all duration-300 ${
           refundNum > 0
@@ -198,16 +269,60 @@ export const ResultsDisplay: React.FC = () => {
             : "bg-gray-50 border-gray-200"
         }`}
       >
-        <h3 className="text-3xl font-extrabold mb-2 text-blue-700">
-          {refundNum > 0
-            ? `מגיע לך החזר מס של ${refundNum.toLocaleString()} ₪`
-            : "לא נמצאה זכאות להחזר מס"}
-        </h3>
-        <p className="text-gray-600">
-          {refundNum > 0
-            ? "ניתן להגיש בקשה להחזר עבור עד 6 שנים אחורה!"
-            : "לא שילמת מס עודף על פי הנתונים שהוזנו"}
-        </p>
+        {/* Main Result */}
+        <div className={`relative overflow-hidden rounded-3xl shadow-2xl border transition-all duration-500 ${
+          refundNum > 0
+            ? "bg-gradient-to-br from-green-50 via-emerald-50 to-green-100 border-green-200"
+            : "bg-gradient-to-br from-gray-50 via-slate-50 to-gray-100 border-gray-200"
+        }`}>
+          {/* Background Pattern */}
+          <div className="absolute inset-0 opacity-5">
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent transform -skew-x-12"></div>
+          </div>
+          
+          <div className="relative p-12 text-center">
+            {/* Icon */}
+            <div className={`w-20 h-20 mx-auto mb-6 rounded-full flex items-center justify-center ${
+              refundNum > 0 
+                ? "bg-gradient-to-br from-green-400 to-emerald-500 shadow-lg" 
+                : "bg-gradient-to-br from-gray-400 to-slate-500 shadow-lg"
+            }`}>
+              <CheckCircle className={`w-10 h-10 ${
+                refundNum > 0 ? "text-white" : "text-white"
+              }`} />
+            </div>
+
+            {/* Title */}
+            <h3 className={`text-3xl font-bold mb-4 ${
+              refundNum > 0 ? "text-green-800" : "text-gray-700"
+            }`}>
+              {refundNum > 0 ? "🎉 מגיע לך החזר מס!" : "לא נמצאה זכאות להחזר מס"}
+            </h3>
+
+            {/* Amount */}
+            {refundNum > 0 && (
+              <div className="text-6xl font-black text-green-600 mb-6 drop-shadow-lg">
+                {refundNum.toLocaleString()} ₪
+              </div>
+            )}
+
+            {/* Description */}
+            <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
+              <p className={`text-lg font-medium ${
+                refundNum > 0 ? "text-green-700" : "text-gray-600"
+              }`}>
+                {refundNum > 0
+                  ? "ניתן להגיש בקשה להחזר עבור עד 6 שנים אחורה!"
+                  : "לא שילמת מס עודף על פי הנתונים שהוזנו"}
+              </p>
+              {refundNum > 0 && (
+                <p className="text-sm text-green-600 mt-2">
+                  הדוח מוכן לשליחה לרשות המיסים
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
       <div className="mt-4 p-4 bg-blue-50 rounded-xl shadow-sm">
         <h4 className="font-medium text-blue-800 mb-1">הסבר:</h4>
@@ -445,6 +560,7 @@ export const ResultsDisplay: React.FC = () => {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 };

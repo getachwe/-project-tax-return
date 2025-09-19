@@ -146,11 +146,12 @@ export const ManualForm: React.FC = () => {
       return;
     }
 
-    console.log("Form is valid, updating taxData and going to next step");
+    console.log("✅ Form is valid, updating taxData and going to next step");
+    console.log("📝 Setting taxData:", { ...taxData, ...extra });
     setTaxData({ ...taxData, ...extra });
-    console.log("About to call goToNextStep from ManualForm");
+    console.log("🚀 About to call goToNextStep from ManualForm");
     goToNextStep();
-    console.log("goToNextStep called from ManualForm");
+    console.log("✅ goToNextStep called from ManualForm");
   };
 
   // Simple error simulation: required fields must not be empty

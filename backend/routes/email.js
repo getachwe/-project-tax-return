@@ -5,13 +5,15 @@ const fs = require("fs");
 const nodemailer = require("nodemailer");
 const { calculateTax } = require("../taxCalculator");
 const { generateTaxPDFHtml } = require("../pdfGeneratorHtml");
+const { getSupabaseServiceClient } = require("../supabaseClient");
+const { getBearerToken } = require("../utils/authHelpers");
 
 router.post("/send-tax-return-email", async (req, res) => {
   try {
     console.log("=== Email Request ===");
     console.log("Body:", JSON.stringify(req.body, null, 2));
 
-    const { taxData, email } = req.body;
+    const { taxData, email, reportId } = req.body;
     if (!email || !taxData) {
       console.log("Missing email or taxData");
       return res
@@ -28,14 +30,73 @@ router.post("/send-tax-return-email", async (req, res) => {
     if (!hasGenericSmtp && !hasMailtrap)
       return res.status(500).json({ success: false, error: "SMTP לא מוגדר" });
 
-    const taxResult = calculateTax(taxData);
-    const tempPath = path.join(
-      __dirname,
-      "..",
-      "pdfs",
-      `tax-return-email-${Date.now()}.pdf`
-    );
-    await generateTaxPDFHtml(taxResult, tempPath);
+    let tempPath;
+    let pdfFileName = "tax-return.pdf";
+
+    // Try to use existing PDF from Supabase Storage if reportId is provided
+    if (reportId) {
+      try {
+        const service = await getSupabaseServiceClient();
+        const token = getBearerToken(req);
+
+        if (token) {
+          const { data: userData, error: userError } =
+            await service.auth.getUser(token);
+          if (!userError && userData.user) {
+            const { data: report, error: fetchError } = await service
+              .from("reports")
+              .select("storage_path, file_name")
+              .eq("id", reportId)
+              .eq("user_id", userData.user.id)
+              .single();
+
+            if (!fetchError && report) {
+              console.log(
+                "Using existing PDF from storage:",
+                report.storage_path
+              );
+              const { data: pdfData, error: downloadError } =
+                await service.storage
+                  .from("reports")
+                  .download(report.storage_path);
+
+              if (!downloadError && pdfData) {
+                tempPath = path.join(
+                  __dirname,
+                  "..",
+                  "pdfs",
+                  `existing-${Date.now()}.pdf`
+                );
+                fs.writeFileSync(
+                  tempPath,
+                  Buffer.from(await pdfData.arrayBuffer())
+                );
+                pdfFileName = report.file_name || "tax-return.pdf";
+                console.log("Successfully downloaded existing PDF");
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.log(
+          "Error using existing PDF, will generate new one:",
+          e.message
+        );
+      }
+    }
+
+    // Generate new PDF if we couldn't use existing one
+    if (!tempPath) {
+      console.log("Generating new PDF");
+      const taxResult = calculateTax(taxData);
+      tempPath = path.join(
+        __dirname,
+        "..",
+        "pdfs",
+        `tax-return-email-${Date.now()}.pdf`
+      );
+      await generateTaxPDFHtml(taxResult, tempPath);
+    }
 
     let transporter;
     if (hasGenericSmtp) {
@@ -62,7 +123,7 @@ router.post("/send-tax-return-email", async (req, res) => {
       to: `${email}, ${process.env.SMTP_USER}`, // שליחה גם לכתובת שהזנת וגם לכתובת שלך
       subject: "דוח החזר מס שנתי",
       text: "מצורף דוח החזר מס שנתי. נא לעיין במסמך.",
-      attachments: [{ filename: "tax-return.pdf", path: tempPath }],
+      attachments: [{ filename: pdfFileName, path: tempPath }],
     });
     fs.unlink(tempPath, () => {});
     res.json({ success: true });

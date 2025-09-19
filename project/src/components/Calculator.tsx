@@ -11,8 +11,14 @@ export const Calculator: React.FC = () => {
 
   // Redirect to results page when step 3 is reached
   React.useEffect(() => {
+    console.log("Calculator useEffect - currentStep:", currentStep);
+    console.log("Calculator useEffect - taxData:", taxData);
+
     if (currentStep === 3) {
-      console.log("Calculator - Navigating to /results with taxData:", taxData);
+      console.log(
+        "🚀 Calculator - Navigating to /results with taxData:",
+        taxData
+      );
       navigate("/results", {
         state: {
           taxData: taxData,
