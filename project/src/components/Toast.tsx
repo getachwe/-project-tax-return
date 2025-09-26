@@ -1,8 +1,9 @@
 import React from "react";
 
-type ToastProps = {
+export type ToastProps = {
   type: "success" | "error" | "info";
   message: string;
+  onClose?: () => void;
 };
 
 export const Toast: React.FC<ToastProps> = ({ type, message }) => {
@@ -18,4 +19,3 @@ export const Toast: React.FC<ToastProps> = ({ type, message }) => {
 };
 
 export default Toast;
-

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Upload, Pencil, ArrowRight } from "lucide-react";
 import { useTaxCalculator } from "../../../context/TaxCalculatorContext";
+import type { TaxData } from "../../../context/TaxCalculatorContext";
 import { UploadDropzone } from "./UploadDropzone";
 import { UploadTips } from "./UploadTips";
 import { UploadProgress } from "./UploadProgress";
@@ -52,13 +53,22 @@ export const UploadForm: React.FC = () => {
         setMissingFields(result.missingFields);
       } else {
         // All data extracted successfully
+        // Preserve taxYear from extraction when valid; otherwise default to last year
+        const extractedYear = Number(result.data.taxYear);
+        const boundedExtractedYear = !Number.isNaN(extractedYear)
+          ? Math.max(
+              Math.min(extractedYear, new Date().getFullYear() - 1),
+              new Date().getFullYear() - 6
+            )
+          : new Date().getFullYear() - 1;
+
         setTaxData({
           income: Number(result.data.income) || 0,
           taxPaid: Number(result.data.taxPaid) || 0,
           taxCredits: Number(result.data.creditPoints) || 2.25,
           hasFormData: true,
-          maritalStatus: result.data.maritalStatus || "single",
-          taxYear: Number(result.data.taxYear) || new Date().getFullYear() - 1,
+          maritalStatus: String(result.data.maritalStatus || "single"),
+          taxYear: boundedExtractedYear,
           gender: result.data.gender,
           employmentType: result.data.employmentType,
           children: Number(result.data.children) || 0,
@@ -104,6 +114,14 @@ export const UploadForm: React.FC = () => {
     }
 
     const finalData = { ...extractedData, ...missingValues };
+    // Ensure taxYear is preserved exactly as entered by the user when valid
+    const numericYear = Number(finalData.taxYear);
+    const boundedYear = !Number.isNaN(numericYear)
+      ? Math.max(
+          Math.min(numericYear, new Date().getFullYear() - 1),
+          new Date().getFullYear() - 6
+        )
+      : undefined;
     console.log("📝 Final data:", finalData);
 
     const newTaxData = {
@@ -111,8 +129,8 @@ export const UploadForm: React.FC = () => {
       taxPaid: Number(finalData.taxPaid) || 0,
       taxCredits: Number(finalData.creditPoints) || 2.25,
       hasFormData: true,
-      maritalStatus: finalData.maritalStatus || "single",
-      taxYear: Number(finalData.taxYear) || new Date().getFullYear() - 1,
+      maritalStatus: String(finalData.maritalStatus || "single"),
+      taxYear: boundedYear ?? new Date().getFullYear() - 1,
       gender: finalData.gender,
       employmentType: finalData.employmentType,
       children: Number(finalData.children) || 0,
@@ -134,7 +152,7 @@ export const UploadForm: React.FC = () => {
     };
 
     console.log("📝 Setting taxData in UploadForm:", newTaxData);
-    setTaxData(newTaxData);
+    setTaxData(newTaxData as unknown as TaxData);
 
     setToast({
       type: "success",

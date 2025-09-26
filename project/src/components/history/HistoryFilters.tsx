@@ -39,7 +39,7 @@ export const HistoryFilters: React.FC<HistoryFiltersProps> = ({
           <input
             value={year}
             onChange={(e) => onYearChange(e.target.value)}
-            placeholder="2024"
+            placeholder={`${new Date().getFullYear() - 1}`}
             className="input-field-enhanced w-32"
           />
         </div>

@@ -124,10 +124,10 @@ export const Footer: React.FC = () => {
               <p>
                 ניתן ליצור קשר באמצעות דוא"ל:{" "}
                 <a
-                  href="mailto:support@tax-return.co.il"
+                  href="mailto:mytaxreport606@gmail.com"
                   className="text-blue-700 underline"
                 >
-                  support@tax-return.co.il
+                  mytaxreport606@gmail.com
                 </a>
               </p>
               <p>או באמצעות טופס יצירת קשר באתר.</p>

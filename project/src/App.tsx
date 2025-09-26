@@ -63,9 +63,10 @@ function App() {
     // Set warning timeout (5 minutes before session expires)
     warningTimeoutRef.current = setTimeout(() => {
       setShowTimeoutWarning(true);
+      // Auto-logout exactly at session end even if user ignores the banner
     }, SESSION_TIMEOUT - WARNING_BEFORE_TIMEOUT);
 
-    // Set session timeout
+    // Set session timeout - force logout when timer elapses
     timeoutRef.current = setTimeout(() => {
       clearSession();
     }, SESSION_TIMEOUT);
@@ -114,6 +115,7 @@ function App() {
         if (timeoutRef.current) {
           clearTimeout(timeoutRef.current);
         }
+        setShowTimeoutWarning(false);
       }
     };
 

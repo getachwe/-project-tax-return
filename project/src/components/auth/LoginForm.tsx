@@ -24,8 +24,14 @@ export const LoginForm: React.FC<LoginFormProps> = ({
   onTogglePassword,
   onSubmit,
 }) => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!canSubmit || loading) return;
+    await onSubmit();
+  };
+
   return (
-    <div className="space-y-4">
+    <form className="space-y-4" onSubmit={handleSubmit}>
       <div>
         <label
           htmlFor="email"
@@ -87,8 +93,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
       </div>
 
       <button
-        type="button"
-        onClick={onSubmit}
+        type="submit"
         disabled={!canSubmit || loading}
         className={`w-full h-10 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium shadow-md flex items-center justify-center gap-2 transition ease-in-out duration-200 hover:scale-[1.01] ${
           !canSubmit || loading ? "opacity-50 cursor-not-allowed" : ""
@@ -97,6 +102,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({
         <LogIn className="h-4 w-4" />
         כניסה
       </button>
-    </div>
+    </form>
   );
 };

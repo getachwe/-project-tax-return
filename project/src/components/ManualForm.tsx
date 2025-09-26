@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { Dialog } from "@headlessui/react";
 import { AlertCircle } from "lucide-react";
 import { useTaxCalculator } from "../context/TaxCalculatorContext";
+import type { TaxData } from "../context/TaxCalculatorContext";
 import {
   FIELD_LABELS,
   FIELD_TOOLTIPS,
@@ -110,7 +111,8 @@ export const ManualForm: React.FC = () => {
           : undefined,
         max: key === "taxYear" ? new Date().getFullYear() - 1 : undefined,
       })),
-    [taxData.hasFormData]
+    // Fields don't depend on hasFormData; recompute only once
+    []
   );
 
   const values: Record<string, string | number | undefined> = {
@@ -146,9 +148,30 @@ export const ManualForm: React.FC = () => {
       return;
     }
 
-    console.log("✅ Form is valid, updating taxData and going to next step");
-    console.log("📝 Setting taxData:", { ...taxData, ...extra });
-    setTaxData({ ...taxData, ...extra });
+    console.log(
+      "✅ Form is valid, building final payload from current form values"
+    );
+    const numericYear = Number(values.taxYear);
+    const boundedYear = !Number.isNaN(numericYear)
+      ? Math.max(
+          Math.min(numericYear, new Date().getFullYear() - 1),
+          new Date().getFullYear() - 6
+        )
+      : undefined;
+    const finalFromForm = {
+      ...values,
+      taxYear: boundedYear ?? values.taxYear,
+    } as Record<string, unknown>;
+    console.log("📝 Setting taxData with form snapshot:", {
+      ...taxData,
+      ...finalFromForm,
+      ...extra,
+    });
+    setTaxData({
+      ...(taxData as unknown as TaxData),
+      ...finalFromForm,
+      ...extra,
+    } as TaxData);
     console.log("🚀 About to call goToNextStep from ManualForm");
     goToNextStep();
     console.log("✅ goToNextStep called from ManualForm");

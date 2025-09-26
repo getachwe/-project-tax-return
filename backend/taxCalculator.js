@@ -41,7 +41,7 @@ const PDF_STYLES = {
   },
 };
 
-const CREDIT_POINT_VALUE = 2352; // Annual value per credit point (2024)
+const CREDIT_POINT_VALUE = 2352; // Annual value per credit point (approx; may vary by year)
 const MIN_INCOME = 0;
 const MAX_INCOME = 10000000; // Reasonable upper limit
 const MIN_CHILDREN = 0;
@@ -158,8 +158,15 @@ function calculateTax(data) {
   try {
     // Validate and normalize input
     const validatedData = validateInput(data);
+    // Determine tax year from input; default to previous calendar year
+    const submittedYear = Number(data.taxYear);
+    const currentYear = new Date().getFullYear();
+    const taxYear =
+      !isNaN(submittedYear) && submittedYear > 1900
+        ? submittedYear
+        : currentYear - 1;
 
-    // פטור לנכה - אם אחוז נכות 40% ומעלה, פטור ממס עד תקרה (2024: 614,400 ש"ח)
+    // פטור לנכה - אם אחוז נכות 40% ומעלה, פטור ממס עד תקרה (נכון לשנים האחרונות ~614,400 ש"ח)
     let grossTax = 0;
     let disabilityExemption = 0;
     const disabilityPercent = Number(data.disabilityPercent) || 0;
@@ -180,7 +187,7 @@ function calculateTax(data) {
     // חישוב פטור לחייל/ת משוחרר/ת
     let armyExemption = 0;
     if (data.isArmyService) {
-      // פטור ממס ל-36 חודשים ראשונים עד תקרה של 186,000 ש"ח (נכון ל-2024)
+      // פטור ממס ל-36 חודשים ראשונים עד תקרה של 186,000 ש"ח (התקרה עלולה להשתנות משנה לשנה)
       const exemptionCap = 186000;
       const exemptIncome = Math.min(validatedData.income, exemptionCap);
       armyExemption = calcIncomeTax(exemptIncome);
@@ -206,7 +213,7 @@ function calculateTax(data) {
 
     // Prepare detailed explanation
     const explanation = [
-      "חישוב מס הכנסה לשנת 2024:",
+      `חישוב מס הכנסה לשנת ${taxYear}:`,
       `הכנסה שנתית: ${validatedData.income.toLocaleString()} ₪`,
       `מס גולמי: ${grossTax.toLocaleString()} ₪`,
       `נקודות זיכוי: ${creditPoints.toFixed(2)}`,
@@ -248,7 +255,7 @@ function calculateTax(data) {
       isArmyService: data.isArmyService,
       isNationalService: data.isNationalService,
       yearsSinceAliyah: data.yearsSinceAliyah,
-      taxYear: "2024",
+      taxYear,
       calculationDetails: {
         income: validatedData.income,
         grossTax,

@@ -1,6 +1,11 @@
 export type AuthResponse = { access_token?: string } & Record<string, unknown>;
 
-const BASE_URL = (import.meta as any).env?.VITE_API_URL || "http://localhost:4000";
+// Prefer env var when provided. If running Vite dev server (port 5173),
+// default to the local backend at http://localhost:4000. In production, use relative /api.
+const isBrowser = typeof window !== "undefined";
+const isLocalHost = isBrowser &&
+  (location.hostname === "localhost" || location.hostname === "127.0.0.1");
+const BASE_URL = (import.meta as any).env?.VITE_API_URL || (isLocalHost ? "http://localhost:4000" : "");
 
 function getAuthHeader(token?: string) {
   return token ? { Authorization: `Bearer ${token}` } : {};
