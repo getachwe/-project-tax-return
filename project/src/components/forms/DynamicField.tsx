@@ -6,7 +6,6 @@ import {
   Calendar,
   Hash,
   FileText,
-  DollarSign,
   Users,
   Baby,
   Building2,
@@ -68,7 +67,11 @@ export const DynamicField: React.FC<DynamicFieldProps> = ({
       fieldId.includes("הכנסה") ||
       fieldId.includes("tax")
     )
-      return <DollarSign className="h-4 w-4 text-gray-400" />;
+      return (
+        <span className="h-4 w-4 text-gray-400 inline-flex items-center justify-center font-bold">
+          ₪
+        </span>
+      );
     if (fieldId.includes("children") || fieldId.includes("ילדים"))
       return <Baby className="h-4 w-4 text-gray-400" />;
     if (fieldId.includes("employment") || fieldId.includes("עבודה"))

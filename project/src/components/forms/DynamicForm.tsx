@@ -45,7 +45,7 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
             label={field.label}
             tooltip={field.tooltip}
             type={field.type}
-            value={values[field.id] || ""}
+            value={values[field.id] ?? ""}
             onChange={(e) => {
               console.log("DynamicForm onChange:", field.id, e.target.value);
               onChange(field.id, e.target.value);

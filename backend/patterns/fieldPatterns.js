@@ -125,6 +125,95 @@ const FIELD_PATTERNS = {
       regex: /(?:סה"כ\s*ניכויי\s*מס)[^\d]*([\d,\.]+)/,
     },
 
+    // Form 106 specific patterns - קודי מס ספציפיים
+    {
+      key: "income",
+      regex: /(?:הכנסה\s*מבוטחת\s*\(244\/245\))[^\d]*([\d,\.]+)/,
+    },
+    {
+      key: "taxPaid",
+      regex: /(?:סה"כ\s*ניכויי\s*מס\s*\(042\))[^\d]*([\d,\.]+)/,
+    },
+    {
+      key: "pensionContribution",
+      regex:
+        /(?:סכום\s*הפרשות\s*המעביד\s*לקופות\s*גמל\s*לקצבה\s*\(248\/249\))[^\d]*([\d,\.]+)/,
+    },
+    {
+      key: "fee158",
+      regex: /(?:סה"כ\s*\(158\/172\))[^\d]*([\d,\.]+)/,
+    },
+    {
+      key: "pensionAllocation",
+      regex: /(?:סכום\s*הפרשה\s*לקצבה\s*ממנה\s*נוכה\s*מס)[^\d]*([\d,\.]+)/,
+    },
+    {
+      key: "employeePensionDeposit",
+      regex: /(?:הפקדות\s*העובד\s*לקופ"ג\s*לקצבה)[^\d]*([\d,\.]+)/,
+    },
+    {
+      key: "socialSecuritySalary",
+      regex: /(?:שכר\s*חייב\s*בדמי\s*ביטוח)[^\d]*([\d,\.]+)/,
+    },
+    {
+      key: "creditPointsAmount",
+      regex: /(?:סכום\s*נקודות\s*הזיכוי\s*בשקלים)[^\d]*([\d,\.]+)/,
+    },
+    {
+      key: "workMonths",
+      regex: /(?:חדשי\s*עבודה\s*בשנת\s*המס)[^\d]*(\d+)/,
+    },
+
+    // נתונים נוספים מטופס 106
+    {
+      key: "employeeFirstName",
+      regex: /(?:שם\s*פרטי)[^\d]*([^\n]+)/,
+    },
+    {
+      key: "employeeLastName",
+      regex: /(?:שם\s*משפחה)[^\d]*([^\n]+)/,
+    },
+    {
+      key: "employeeId",
+      regex: /(?:מספר\s*ישות\s*\/\s*זהות)[^\d]*([\d\-]+)/,
+    },
+    {
+      key: "kibbutzMember",
+      regex: /(?:חבר\s*קיבוץ)[^\d]*([^\n]+)/,
+    },
+    {
+      key: "employerName",
+      regex: /(?:שם\s*המעביד)[^\d]*([^\n]+)/,
+    },
+    {
+      key: "deductionFileNumber",
+      regex: /(?:מס'\s*תיק\s*ניכויים)[^\d]*([\d\-]+)/,
+    },
+    {
+      key: "pensionAllocation",
+      regex: /(?:סכום\s*הפרשה\s*לקצבה\s*ממנה\s*נוכה\s*מס)[^\d]*([\d,\.]+)/,
+    },
+    {
+      key: "employeePensionDeposit",
+      regex: /(?:הפקדות\s*העובד\s*לקופ"ג\s*לקצבה)[^\d]*([\d,\.]+)/,
+    },
+    {
+      key: "socialSecuritySalary1",
+      regex: /(?:שכר\s*חייב\s*בדמי\s*ביטוח)[^\d]*([\d,\.]+)/,
+    },
+    {
+      key: "socialSecuritySalary2",
+      regex: /(?:שכר\s*חייב\s*בדמי\s*ביטוח)[^\d]*([\d,\.]+)/,
+    },
+    {
+      key: "creditPointsNumber",
+      regex: /(?:מספר\s*נקודות\s*זיכוי\s*משוקלל)[^\d]*([\d,\.]+)/,
+    },
+    {
+      key: "creditPointsAmount",
+      regex: /(?:סכום\s*נקודות\s*הזיכוי\s*בשקלים)[^\d]*([\d,\.]+)/,
+    },
+
     // Income Information
     { key: "income", regex: /שכר\s*ברוטו[:\s]+([\d,\.]+)/ },
     { key: "income", regex: /סה"כ\s*שכר\s*ברוטו[:\s]+([\d,\.]+)/ },

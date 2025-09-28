@@ -10,7 +10,7 @@ import {
   GENDER_OPTIONS,
   EMPLOYMENT_OPTIONS,
 } from "../constants/fields";
-import { DynamicForm, DynamicFormField } from "./forms/DynamicForm";
+import { DynamicFormField } from "./forms/DynamicForm";
 
 const TOOLTIP_KEYS = new Set([
   "income",
@@ -83,36 +83,87 @@ export const ManualForm: React.FC = () => {
   });
   const [showSubmitError, setShowSubmitError] = React.useState(false);
 
+  // סידור השדות לפי נושאים
+  const fieldSections = useMemo(
+    () => ({
+      // נתונים עיקריים לחישוב מס
+      main: [
+        "income",
+        "taxPaid",
+        "taxCredits",
+        "additionalIncome",
+        "workPeriod",
+        "creditPoints",
+        "children",
+        "taxYear",
+      ],
+
+      // נתונים אישיים
+      personal: [
+        "firstName",
+        "lastName",
+        "employeeId",
+        "birthDate",
+        "maritalStatus",
+        "gender",
+        "address",
+        "residency",
+      ],
+
+      // נתוני עבודה
+      employment: [
+        "employmentType",
+        "workStartDate",
+        "workEndDate",
+        "employerName",
+        "deductionFileNumber",
+        "kibbutzMember",
+      ],
+
+      // נתונים פיננסיים נוספים
+      financial: [
+        "pensionAllocation",
+        "employeePensionDeposit",
+        "socialSecuritySalary",
+      ],
+
+      // קצבאות
+      benefits: ["childAllowance", "disabilityAllowance", "oldAgeAllowance"],
+    }),
+    []
+  );
+
   const fields: DynamicFormField[] = useMemo(
     () =>
-      Object.entries(FIELD_LABELS).map(([key, label]) => ({
-        id: key,
-        label,
-        type: getFieldType(key),
-        tooltip: getTooltip(key),
-        options: getOptions(key),
-        required: ["income", "taxPaid", "taxYear", "maritalStatus"].includes(
-          key
-        ),
-        readOnly: key === "taxYear" ? false : undefined,
-        min: [
-          "income",
-          "taxPaid",
-          "taxYear",
-          "children",
-          "additionalIncome",
-          "oldAgeAllowance",
-          "childAllowance",
-          "disabilityAllowance",
-        ].includes(key)
-          ? key === "taxYear"
-            ? new Date().getFullYear() - 6
-            : 0
-          : undefined,
-        max: key === "taxYear" ? new Date().getFullYear() - 1 : undefined,
-      })),
-    // Fields don't depend on hasFormData; recompute only once
-    []
+      Object.values(fieldSections)
+        .flat()
+        .map((key) => ({
+          id: key,
+          label: FIELD_LABELS[key],
+          type: getFieldType(key),
+          tooltip: getTooltip(key),
+          options: getOptions(key),
+          required: ["income", "taxPaid", "taxYear", "maritalStatus"].includes(
+            key
+          ),
+          readOnly: key === "taxYear" ? false : undefined,
+          min: [
+            "income",
+            "taxPaid",
+            "taxYear",
+            "children",
+            "additionalIncome",
+            "oldAgeAllowance",
+            "childAllowance",
+            "disabilityAllowance",
+          ].includes(key)
+            ? key === "taxYear"
+              ? new Date().getFullYear() - 6
+              : 0
+            : undefined,
+          max: key === "taxYear" ? new Date().getFullYear() - 1 : undefined,
+        })),
+    [fieldSections]
   );
 
   const values: Record<string, string | number | undefined> = {
@@ -242,13 +293,396 @@ export const ManualForm: React.FC = () => {
               : "אנא הזן את הנתונים הבאים כדי שנוכל לחשב את החזר המס האפשרי שלך."}
           </p>
         </div>
-        <div className="space-y-4">
-          <DynamicForm
-            fields={fields}
-            values={values}
-            onChange={handleChange}
-            onSubmit={handleSubmit}
-          />
+        <div className="space-y-10">
+          {/* נתונים עיקריים לחישוב מס */}
+          <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+            <h3 className="text-xl font-semibold text-gray-900 mb-6">
+              נתונים עיקריים לחישוב מס
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 gap-6">
+              {fieldSections.main.map((key) => {
+                const field = fields.find((f) => f.id === key);
+                if (!field) return null;
+                return (
+                  <div
+                    key={key}
+                    className={`space-y-2 ${
+                      [
+                        "employeeId",
+                        "taxYear",
+                        "creditPoints",
+                        "children",
+                      ].includes(key)
+                        ? "md:max-w-xs"
+                        : ""
+                    }`}
+                  >
+                    <label className="block text-sm font-medium text-gray-900">
+                      {field.label}
+                      {field.required && (
+                        <span className="text-red-500 mr-1">*</span>
+                      )}
+                      {field.tooltip && (
+                        <span
+                          className="ml-2 text-blue-500 cursor-help"
+                          title={field.tooltip}
+                        >
+                          ℹ️
+                        </span>
+                      )}
+                    </label>
+                    <input
+                      type={
+                        field.type === "number"
+                          ? "number"
+                          : field.type === "date"
+                          ? "date"
+                          : "text"
+                      }
+                      value={
+                        (values as Record<string, string | number>)[key] ?? ""
+                      }
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        handleChange(
+                          key,
+                          field.type === "number"
+                            ? v === ""
+                              ? ""
+                              : Number(v)
+                            : v
+                        );
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-800"
+                      required={field.required}
+                      min={field.min}
+                      max={field.max}
+                      dir={field.type === "number" ? "rtl" : undefined}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* נתונים אישיים */}
+          <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+            <h3 className="text-xl font-semibold text-gray-900 mb-6">
+              נתונים אישיים
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 gap-6">
+              {fieldSections.personal.map((key) => {
+                const field = fields.find((f) => f.id === key);
+                if (!field) return null;
+                return (
+                  <div
+                    key={key}
+                    className={`space-y-2 ${
+                      [
+                        "employeeId",
+                        "taxYear",
+                        "creditPoints",
+                        "children",
+                      ].includes(key)
+                        ? "md:max-w-xs"
+                        : ""
+                    }`}
+                  >
+                    <label className="block text-sm font-medium text-gray-900">
+                      {field.label}
+                      {field.required && (
+                        <span className="text-red-500 mr-1">*</span>
+                      )}
+                      {field.tooltip && (
+                        <span
+                          className="ml-2 text-blue-500 cursor-help"
+                          title={field.tooltip}
+                        >
+                          ℹ️
+                        </span>
+                      )}
+                    </label>
+                    {field.type === "select" ? (
+                      <select
+                        value={
+                          (values as Record<string, string | number>)[key] ?? ""
+                        }
+                        onChange={(e) => handleChange(key, e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-800"
+                        required={field.required}
+                      >
+                        <option value="">בחר...</option>
+                        {field.options?.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type={
+                          field.type === "number"
+                            ? "number"
+                            : field.type === "date"
+                            ? "date"
+                            : "text"
+                        }
+                        value={
+                          (values as Record<string, string | number>)[key] ?? ""
+                        }
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          handleChange(
+                            key,
+                            field.type === "number"
+                              ? v === ""
+                                ? ""
+                                : Number(v)
+                              : v
+                          );
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-800"
+                        required={field.required}
+                        min={field.min}
+                        max={field.max}
+                        dir={field.type === "number" ? "rtl" : undefined}
+                      />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* נתוני עבודה */}
+          <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+            <h3 className="text-xl font-semibold text-gray-900 mb-6">
+              נתוני עבודה
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 gap-6">
+              {fieldSections.employment.map((key) => {
+                const field = fields.find((f) => f.id === key);
+                if (!field) return null;
+                return (
+                  <div
+                    key={key}
+                    className={`space-y-2 ${
+                      [
+                        "employeeId",
+                        "taxYear",
+                        "creditPoints",
+                        "children",
+                      ].includes(key)
+                        ? "md:max-w-xs"
+                        : ""
+                    }`}
+                  >
+                    <label className="block text-sm font-medium text-gray-900">
+                      {field.label}
+                      {field.required && (
+                        <span className="text-red-500 mr-1">*</span>
+                      )}
+                      {field.tooltip && (
+                        <span
+                          className="ml-2 text-blue-500 cursor-help"
+                          title={field.tooltip}
+                        >
+                          ℹ️
+                        </span>
+                      )}
+                    </label>
+                    {field.type === "select" ? (
+                      <select
+                        value={
+                          (values as Record<string, string | number>)[key] ?? ""
+                        }
+                        onChange={(e) => handleChange(key, e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-800"
+                        required={field.required}
+                      >
+                        <option value="">בחר...</option>
+                        {field.options?.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type={
+                          field.type === "number"
+                            ? "number"
+                            : field.type === "date"
+                            ? "date"
+                            : "text"
+                        }
+                        value={
+                          (values as Record<string, string | number>)[key] ?? ""
+                        }
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          handleChange(
+                            key,
+                            field.type === "number"
+                              ? v === ""
+                                ? ""
+                                : Number(v)
+                              : v
+                          );
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-800"
+                        required={field.required}
+                        min={field.min}
+                        max={field.max}
+                        dir={field.type === "number" ? "rtl" : undefined}
+                      />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* נתונים פיננסיים נוספים */}
+          <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+            <h3 className="text-xl font-semibold text-gray-900 mb-6">
+              נתונים פיננסיים נוספים
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 gap-6">
+              {fieldSections.financial.map((key) => {
+                const field = fields.find((f) => f.id === key);
+                if (!field) return null;
+                return (
+                  <div
+                    key={key}
+                    className={`space-y-2 ${
+                      [
+                        "employeeId",
+                        "taxYear",
+                        "creditPoints",
+                        "children",
+                      ].includes(key)
+                        ? "md:max-w-xs"
+                        : ""
+                    }`}
+                  >
+                    <label className="block text-sm font-medium text-gray-900">
+                      {field.label}
+                      {field.required && (
+                        <span className="text-red-500 mr-1">*</span>
+                      )}
+                      {field.tooltip && (
+                        <span
+                          className="ml-2 text-blue-500 cursor-help"
+                          title={field.tooltip}
+                        >
+                          ℹ️
+                        </span>
+                      )}
+                    </label>
+                    <input
+                      type={
+                        field.type === "number"
+                          ? "number"
+                          : field.type === "date"
+                          ? "date"
+                          : "text"
+                      }
+                      value={
+                        (values as Record<string, string | number>)[key] ?? ""
+                      }
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        handleChange(
+                          key,
+                          field.type === "number"
+                            ? v === ""
+                              ? ""
+                              : Number(v)
+                            : v
+                        );
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-800"
+                      required={field.required}
+                      min={field.min}
+                      max={field.max}
+                      dir={field.type === "number" ? "rtl" : undefined}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* קצבאות */}
+          <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+            <h3 className="text-xl font-semibold text-gray-900 mb-6">קצבאות</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 gap-6">
+              {fieldSections.benefits.map((key) => {
+                const field = fields.find((f) => f.id === key);
+                if (!field) return null;
+                return (
+                  <div
+                    key={key}
+                    className={`space-y-2 ${
+                      [
+                        "employeeId",
+                        "taxYear",
+                        "creditPoints",
+                        "children",
+                      ].includes(key)
+                        ? "md:max-w-xs"
+                        : ""
+                    }`}
+                  >
+                    <label className="block text-sm font-medium text-gray-900">
+                      {field.label}
+                      {field.required && (
+                        <span className="text-red-500 mr-1">*</span>
+                      )}
+                      {field.tooltip && (
+                        <span
+                          className="ml-2 text-blue-500 cursor-help"
+                          title={field.tooltip}
+                        >
+                          ℹ️
+                        </span>
+                      )}
+                    </label>
+                    <input
+                      type={
+                        field.type === "number"
+                          ? "number"
+                          : field.type === "date"
+                          ? "date"
+                          : "text"
+                      }
+                      value={
+                        (values as Record<string, string | number>)[key] ?? ""
+                      }
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        handleChange(
+                          key,
+                          field.type === "number"
+                            ? v === ""
+                              ? ""
+                              : Number(v)
+                            : v
+                        );
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-800"
+                      required={field.required}
+                      min={field.min}
+                      max={field.max}
+                      dir={field.type === "number" ? "rtl" : undefined}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
           <div className="space-y-3 mt-4 p-4 bg-blue-50 rounded-xl">
             <h3 className="text-lg font-medium text-blue-900">
               זכאויות נוספות
@@ -278,6 +712,13 @@ export const ManualForm: React.FC = () => {
               className="btn-secondary px-8 py-2"
             >
               חזרה
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmit}
+              className="btn-primary px-8 py-2"
+            >
+              המשך
             </button>
           </div>
         </div>

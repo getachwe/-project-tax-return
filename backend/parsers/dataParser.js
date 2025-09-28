@@ -67,6 +67,264 @@ function parseText(text, FIELD_PATTERNS, TAX_CODES) {
   const allCodes = [];
   const allAmounts = [];
 
+  // חילוץ ספציפי לטופס 106 - זיהוי קודי מס וסכומים
+  const form106Patterns = [
+    {
+      key: "income",
+      patterns: [
+        /הכנסה\s*מבוטחת\s*\(244\/245\)[^\d]*([\d,\.]+)/,
+        /244\s+([\d,\.]+)/,
+        /245\s+([\d,\.]+)/,
+      ],
+    },
+    {
+      key: "taxPaid",
+      patterns: [
+        /סה"כ\s*ניכויי\s*מס\s*\(042\)[^\d]*([\d,\.]+)/,
+        /סה"כ\s*ניכויי\s*מס\s*\)042\([^\d]*([\d,\.]+)/,
+        /סה"כ\s*ניכויי\s*מס\s*\)042\((\d+)/,
+        /ניכויי\s*מס[^\d]*([\d,\.]+)/,
+        /מס\s*שנוכה[^\d]*([\d,\.]+)/,
+        /042[^\d]*([\d,\.]+)/,
+        /\)042\([^\d]*([\d,\.]+)/,
+        /\(042\)[^\d]*([\d,\.]+)/,
+        /ניכויי\s*מס\s*\)042\((\d+)/,
+      ],
+    },
+    {
+      key: "pensionContribution",
+      patterns: [
+        /סכום\s*הפרשות\s*המעביד\s*לקופות\s*גמל\s*לקצבה\s*\(248\/249\)[^\d]*([\d,\.]+)/,
+        /248\s+([\d,\.]+)/,
+        /249\s+([\d,\.]+)/,
+      ],
+    },
+    {
+      key: "fee158",
+      patterns: [/סה"כ\s*\(158\/172\)[^\d]*([\d,\.]+)/, /158\s+([\d,\.]+)/],
+    },
+    {
+      key: "pensionAllocation",
+      patterns: [/סכום\s*הפרשה\s*לקצבה\s*ממנה\s*נוכה\s*מס[^\d]*([\d,\.]+)/],
+    },
+    {
+      key: "employeePensionDeposit",
+      patterns: [/הפקדות\s*העובד\s*לקופ"ג\s*לקצבה[^\d]*([\d,\.]+)/],
+    },
+    {
+      key: "socialSecuritySalary",
+      patterns: [/שכר\s*חייב\s*בדמי\s*ביטוח[^\d]*([\d,\.]+)/],
+    },
+    {
+      key: "creditPointsAmount",
+      patterns: [/סכום\s*נקודות\s*הזיכוי\s*בשקלים[^\d]*([\d,\.]+)/],
+    },
+    {
+      key: "creditPoints",
+      patterns: [
+        /(?:נקודות\s*זיכוי)[^\d]*([\d,\.]+)/,
+        /(?:זיכוי\s*מס)[^\d]*([\d,\.]+)/,
+        /(?:נקודות)[^\d]*([\d,\.]+)/,
+        /(?:זיכוי)[^\d]*([\d,\.]+)/,
+        /(?:נקודות\s*זיכוי\s*בשקלים)[^\d]*([\d,\.]+)/,
+        /(?:סכום\s*נקודות\s*זיכוי)[^\d]*([\d,\.]+)/,
+        /(?:נקודות\s*זיכוי\s*בשקלים)[^\d]*([\d,\.]+)/,
+        /(?:סכום\s*נקודות\s*זיכוי)[^\d]*([\d,\.]+)/,
+        /(?:נקודות\s*זיכוי\s*בשקלים)[^\d]*([\d,\.]+)/,
+        /(?:סכום\s*נקודות\s*זיכוי)[^\d]*([\d,\.]+)/,
+        /(?:נקודות\s*זיכוי\s*בשקלים)[^\d]*([\d,\.]+)/,
+        /(?:סכום\s*נקודות\s*זיכוי)[^\d]*([\d,\.]+)/,
+        /(?:נקודות\s*זיכוי\s*בשקלים)[^\d]*([\d,\.]+)/,
+        /(?:סכום\s*נקודות\s*זיכוי)[^\d]*([\d,\.]+)/,
+        /(?:נקודות\s*זיכוי\s*בשקלים)[^\d]*([\d,\.]+)/,
+        /(?:סכום\s*נקודות\s*זיכוי)[^\d]*([\d,\.]+)/,
+      ],
+    },
+    {
+      key: "children",
+      patterns: [
+        /(?:מספר\s*ילדים)[^\d]*([\d]+)/,
+        /(?:ילדים)[^\d]*([\d]+)/,
+        /(?:ילדים\s*מתחת\s*לגיל)[^\d]*([\d]+)/,
+        /(?:ילדים\s*קטנים)[^\d]*([\d]+)/,
+        /(?:ילדים\s*מתחת\s*לגיל\s*18)[^\d]*([\d]+)/,
+        /(?:ילדים\s*קטנים\s*מתחת\s*לגיל)[^\d]*([\d]+)/,
+      ],
+    },
+    {
+      key: "workMonths",
+      patterns: [/חדשי\s*עבודה\s*בשנת\s*המס[^\d]*(\d+)/],
+    },
+    // נתונים אישיים - מיפוי נכון
+    {
+      key: "firstName",
+      patterns: [
+        /שם\s*פרטי[^\d]*([^\n]+)/,
+        /(?:שם\s*פרטי|שם\s*העובד)[^\d]*([^\n]+)/,
+      ],
+    },
+    {
+      key: "lastName",
+      patterns: [
+        /שם\s*משפחה[^\d]*([^\n]+)/,
+        /(?:שם\s*משפחה|שם\s*משפחת\s*העובד)[^\d]*([^\n]+)/,
+      ],
+    },
+    {
+      key: "employeeId",
+      patterns: [
+        /מספר\s*ישות\s*\/\s*זהות[^\d]*([\d\-]+)/,
+        /(?:תעודת\s*זהות|ת\.ז\.|מספר\s*זהות)[^\d]*([\d\-]+)/,
+      ],
+    },
+    {
+      key: "kibbutzMember",
+      patterns: [/חבר\s*קיבוץ[^\d]*([^\n]+)/],
+    },
+    // נתוני מעסיק
+    {
+      key: "employerName",
+      patterns: [/שם\s*המעביד[^\d]*([^\n]+)/],
+    },
+    {
+      key: "deductionFileNumber",
+      patterns: [/מס'\s*תיק\s*ניכויים[^\d]*([\d\-]+)/],
+    },
+    // נתונים פיננסיים נוספים
+    {
+      key: "pensionAllocation",
+      patterns: [/סכום\s*הפרשה\s*לקצבה\s*ממנה\s*נוכה\s*מס[^\d]*([\d,\.]+)/],
+    },
+    {
+      key: "employeePensionDeposit",
+      patterns: [/הפקדות\s*העובד\s*לקופ"ג\s*לקצבה[^\d]*([\d,\.]+)/],
+    },
+    {
+      key: "socialSecuritySalary",
+      patterns: [/שכר\s*חייב\s*בדמי\s*ביטוח[^\d]*([\d,\.]+)/],
+    },
+    // נתונים נוספים חשובים
+    {
+      key: "taxYear",
+      patterns: [
+        /(?:שנת\s*מס)[^\d]*([\d]{4})/,
+        /(?:שנה)[^\d]*([\d]{4})/,
+        /(?:2023|2024|2025)/,
+      ],
+    },
+    {
+      key: "birthDate",
+      patterns: [
+        /(?:תאריך\s*לידה)[^\d]*([\d\/\-\.]+)/,
+        /(?:לידה)[^\d]*([\d\/\-\.]+)/,
+      ],
+    },
+    {
+      key: "address",
+      patterns: [/(?:כתובת)[^\d]*([^\n]+)/, /(?:מגורים)[^\d]*([^\n]+)/],
+    },
+    {
+      key: "additionalIncome",
+      patterns: [
+        /(?:הכנסה\s*נוספת)[^\d]*([\d,\.]+)/,
+        /(?:045)[^\d]*([\d,\.]+)/,
+        /(?:בונוס)[^\d]*([\d,\.]+)/,
+      ],
+    },
+    // קצבאות
+    {
+      key: "childAllowance",
+      patterns: [
+        /(?:קצבת\s*ילדים)[^\d]*([\d,\.]+)/,
+        /(?:ילדים\s*קצבה)[^\d]*([\d,\.]+)/,
+      ],
+    },
+    {
+      key: "disabilityAllowance",
+      patterns: [
+        /(?:קצבת\s*נכות)[^\d]*([\d,\.]+)/,
+        /(?:נכות\s*קצבה)[^\d]*([\d,\.]+)/,
+      ],
+    },
+    {
+      key: "oldAgeAllowance",
+      patterns: [
+        /(?:קצבת\s*זקנה)[^\d]*([\d,\.]+)/,
+        /(?:זקנה\s*קצבה)[^\d]*([\d,\.]+)/,
+      ],
+    },
+  ];
+
+  // חילוץ נתונים ספציפיים לטופס 106
+  for (const { key, patterns } of form106Patterns) {
+    if (!data[key]) {
+      for (const pattern of patterns) {
+        const match = text.match(pattern);
+        if (!match) continue;
+
+        let value;
+        if (key === "workMonths") {
+          const raw = match[1] != null ? String(match[1]) : "";
+          const digitsOnly = raw.match(/\d+/)?.[0] ?? "";
+          value = digitsOnly ? parseInt(digitsOnly, 10) : undefined;
+        } else if (
+          ["firstName", "lastName", "kibbutzMember", "employerName"].includes(
+            key
+          )
+        ) {
+          // שדות טקסט - בדיקה שהערך לא מספר
+          const raw = match[1] != null ? String(match[1]).trim() : "";
+          if (!raw || /^\d+$/.test(raw)) continue;
+          value = raw;
+        } else if (["employeeId", "deductionFileNumber"].includes(key)) {
+          // שדות מספר מזהים - חייבים להיות ספרות בלבד
+          const raw = match[1] != null ? String(match[1]).trim() : "";
+          if (!/^\d+$/.test(raw)) continue;
+          value = raw;
+        } else {
+          // ברירת מחדל: ערך מספרי. הימנע מקריסה אם אין match[1]
+          const raw = match[1] != null ? String(match[1]) : "";
+          const cleaned = raw
+            .replace(/[^\d\.-]/g, "")
+            .replace(/,/g, "")
+            .trim();
+          if (cleaned === "" || !/[\d-]/.test(cleaned)) continue;
+          const n = Number(cleaned);
+          if (Number.isNaN(n)) continue;
+          value = n;
+
+          // טיפול מיוחד למס שנוכה - 0 הוא ערך תקף
+          if (key === "taxPaid" && n === 0) {
+            value = 0;
+          }
+        }
+
+        // בדיקת תקפות ערך לפי סוג שדה
+        let isValid = value !== undefined && value !== null && value !== "";
+        if (
+          !["firstName", "lastName", "kibbutzMember", "employerName"].includes(
+            key
+          ) &&
+          !["employeeId", "deductionFileNumber"].includes(key)
+        ) {
+          // לשדות מספריים - ודא שזה מספר תקף
+          isValid =
+            isValid && typeof value === "number" && !Number.isNaN(value);
+        }
+
+        // טיפול מיוחד למס שנוכה - 0 הוא ערך תקף
+        if (key === "taxPaid" && value === 0) {
+          isValid = true;
+        }
+
+        if (isValid) {
+          data[key] = value;
+          break;
+        }
+      }
+    }
+  }
+
   // אוסף כל הקודים מהטקסט - regex משופר
   const codeRegex = /(?:^|\s|\(|\[|\/)(\d{2,5})(?:\s|\)|\]|\/|$|\))/g;
 
@@ -625,6 +883,38 @@ function parseText(text, FIELD_PATTERNS, TAX_CODES) {
 function applyGeneralCorrections(data, text) {
   const correctedData = { ...data };
 
+  // תיקונים ספציפיים לטופס 106
+  if (correctedData.fee158 && correctedData.fee158 > 0) {
+    // אם יש אגרה (158) אבל הערך הוא 0 בטופס, תקן ל-0
+    if (
+      text.includes('סה"כ (158/172)') &&
+      text.match(/סה"כ\s*\(158\/172\)[^\d]*0/)
+    ) {
+      correctedData.fee158 = 0;
+    }
+  }
+
+  // תיקון ניכוי מס (248) - אם יש הפרשות מעביד לקופות גמל
+  if (
+    correctedData.pensionContribution &&
+    correctedData.pensionContribution > 0
+  ) {
+    // אם יש הפרשות מעביד, זה צריך להיות הערך הנכון
+    correctedData.taxDeductions = correctedData.pensionContribution;
+  }
+
+  // תיקון תקופת עבודה - חילוץ מספר החודשים
+  if (correctedData.workMonths) {
+    correctedData.workPeriod = `${correctedData.workMonths} חודשים`;
+  }
+
+  // תיקון נקודות זיכוי - אם יש סכום בשקלים, חישוב הנקודות
+  if (correctedData.creditPointsAmount && !correctedData.creditPoints) {
+    // נקודת זיכוי = 2,610 ש"ח (נכון לשנת 2023)
+    correctedData.creditPoints =
+      Math.round((correctedData.creditPointsAmount / 2610) * 100) / 100;
+  }
+
   // 1. תיקון סכומים זהים - אם שני שדות זהים, חפש סכום אחר בהקשר
   const duplicateAmounts = findDuplicateAmounts(correctedData);
   for (const [field1, field2, amount] of duplicateAmounts) {
@@ -648,7 +938,9 @@ function applyGeneralCorrections(data, text) {
   // 3. חיפוש שדות חסרים על בסיס הקשר
   const finalData = findMissingFieldsByContext(fixedData, text);
 
-  return finalData;
+  // ולידציה של נתונים מחולצים
+  const validatedData = validateExtractedData(finalData);
+  return validatedData;
 }
 
 // מצא סכומים זהים בשדות שונים
@@ -871,29 +1163,110 @@ function extractTaxFields(text) {
     .map((l) => l.trim())
     .filter(Boolean);
 
-  // חיפוש לפי קודים
+  // חיפוש לפי קודים ומילות מפתח ספציפיות לטופס 106
   for (const line of lines) {
-    if (/158\s+([\d,\.]+)/.test(line)) {
+    // הכנסה מבוטחת (244/245)
+    if (/הכנסה\s*מבוטחת\s*\(244\/245\)[^\d]*([\d,\.]+)/.test(line)) {
       result.income = Number(
-        line.match(/158\s+([\d,\.]+)/)[1].replace(/,/g, "")
+        line
+          .match(/הכנסה\s*מבוטחת\s*\(244\/245\)[^\d]*([\d,\.]+)/)[1]
+          .replace(/,/g, "")
       );
     }
-    if (/244\s+([\d,\.]+)/.test(line)) {
+    // סה"כ ניכויי מס (042)
+    if (/סה"כ\s*ניכויי\s*מס\s*\(042\)[^\d]*([\d,\.]+)/.test(line)) {
       result.tax_paid = Number(
+        line
+          .match(/סה"כ\s*ניכויי\s*מס\s*\(042\)[^\d]*([\d,\.]+)/)[1]
+          .replace(/,/g, "")
+      );
+    }
+    // הפרשות מעביד לקופות גמל (248/249)
+    if (
+      /סכום\s*הפרשות\s*המעביד\s*לקופות\s*גמל\s*לקצבה\s*\(248\/249\)[^\d]*([\d,\.]+)/.test(
+        line
+      )
+    ) {
+      result.pension_contribution = Number(
+        line
+          .match(
+            /סכום\s*הפרשות\s*המעביד\s*לקופות\s*גמל\s*לקצבה\s*\(248\/249\)[^\d]*([\d,\.]+)/
+          )[1]
+          .replace(/,/g, "")
+      );
+    }
+    // סה"כ (158/172) - אגרה
+    if (/סה"כ\s*\(158\/172\)[^\d]*([\d,\.]+)/.test(line)) {
+      const fee = Number(
+        line.match(/סה"כ\s*\(158\/172\)[^\d]*([\d,\.]+)/)[1].replace(/,/g, "")
+      );
+      // אם האגרה היא 0, זה לא הכנסה
+      if (fee === 0) {
+        result.income = null; // איפוס הכנסה אם האגרה 0
+      }
+    }
+    // נקודות זיכוי
+    if (/מספר\s*נקודות\s*זיכוי\s*משוקלל[^\d]*([\d,\.]+)/.test(line)) {
+      result.credit_points = Number(
+        line
+          .match(/מספר\s*נקודות\s*זיכוי\s*משוקלל[^\d]*([\d,\.]+)/)[1]
+          .replace(/,/g, "")
+      );
+    }
+    // סכום נקודות זיכוי בשקלים
+    if (/סכום\s*נקודות\s*הזיכוי\s*בשקלים[^\d]*([\d,\.]+)/.test(line)) {
+      const creditAmount = Number(
+        line
+          .match(/סכום\s*נקודות\s*הזיכוי\s*בשקלים[^\d]*([\d,\.]+)/)[1]
+          .replace(/,/g, "")
+      );
+      // חישוב נקודות זיכוי (2,610 ש"ח לנקודה ב-2023)
+      if (creditAmount > 0) {
+        result.credit_points = Math.round((creditAmount / 2610) * 100) / 100;
+      }
+    }
+    // חדשי עבודה
+    if (/חדשי\s*עבודה\s*בשנת\s*המס[^\d]*(\d+)/.test(line)) {
+      const months = parseInt(
+        line.match(/חדשי\s*עבודה\s*בשנת\s*המס[^\d]*(\d+)/)[1]
+      );
+      if (months > 0) {
+        result.work_months = months;
+      }
+    }
+  }
+
+  // חיפוש נוסף לפי קודים פשוטים - רק אם לא נמצאו כבר
+  for (const line of lines) {
+    if (!result.income && /158\s+([\d,\.]+)/.test(line)) {
+      const amount = Number(
+        line.match(/158\s+([\d,\.]+)/)[1].replace(/,/g, "")
+      );
+      if (amount > 0) {
+        result.income = amount;
+      }
+    }
+    if (!result.income && /244\s+([\d,\.]+)/.test(line)) {
+      result.income = Number(
         line.match(/244\s+([\d,\.]+)/)[1].replace(/,/g, "")
       );
     }
-    if (/248\s+([\d,\.]+)/.test(line)) {
-      result.credit_points = Number(
+    if (!result.tax_paid && /042\s+([\d,\.]+)/.test(line)) {
+      result.tax_paid = Number(
+        line.match(/042\s+([\d,\.]+)/)[1].replace(/,/g, "")
+      );
+    }
+    if (!result.pension_contribution && /248\s+([\d,\.]+)/.test(line)) {
+      result.pension_contribution = Number(
         line.match(/248\s+([\d,\.]+)/)[1].replace(/,/g, "")
       );
     }
-    if (/218\s+([\d,\.]+)/.test(line)) {
+    if (!result.credit_points && /218\s+([\d,\.]+)/.test(line)) {
       result.credit_points = Number(
         line.match(/218\s+([\d,\.]+)/)[1].replace(/,/g, "")
       );
     }
-    if (/127\s+([\d,\.]+)/.test(line)) {
+    if (!result.pension_contribution && /127\s+([\d,\.]+)/.test(line)) {
       result.pension_contribution = Number(
         line.match(/127\s+([\d,\.]+)/)[1].replace(/,/g, "")
       );
@@ -979,4 +1352,115 @@ function extractTaxFields(text) {
   return result;
 }
 
-module.exports = { parseText, detectTemplate, extractTaxFields };
+// פונקציית ולידציה לנתונים מחולצים
+function validateExtractedData(data) {
+  const validated = { ...data };
+
+  // ולידציה של הכנסה
+  if (
+    validated.income &&
+    (validated.income < 0 || validated.income > 10000000)
+  ) {
+    console.warn(`Invalid income value: ${validated.income}`);
+    validated.income = null;
+  }
+
+  // ולידציה של מס ששולם
+  if (
+    validated.taxPaid &&
+    (validated.taxPaid < 0 ||
+      (validated.income && validated.taxPaid > validated.income * 0.5))
+  ) {
+    console.warn(`Invalid tax paid value: ${validated.taxPaid}`);
+    validated.taxPaid = null;
+  }
+
+  // ולידציה של נקודות זיכוי
+  if (
+    validated.creditPoints &&
+    (validated.creditPoints < 0 || validated.creditPoints > 10)
+  ) {
+    console.warn(`Invalid credit points value: ${validated.creditPoints}`);
+    validated.creditPoints = null;
+  }
+
+  // ולידציה של מספר ילדים
+  if (
+    validated.children &&
+    (validated.children < 0 || validated.children > 20)
+  ) {
+    console.warn(`Invalid children count: ${validated.children}`);
+    validated.children = null;
+  }
+
+  // ולידציה של שנת מס
+  if (
+    validated.taxYear &&
+    (validated.taxYear < 2018 || validated.taxYear > new Date().getFullYear())
+  ) {
+    console.warn(`Invalid tax year: ${validated.taxYear}`);
+    validated.taxYear = new Date().getFullYear() - 1;
+  }
+
+  // ולידציה של תקופת עבודה
+  if (
+    validated.workMonths &&
+    (validated.workMonths < 0 || validated.workMonths > 12)
+  ) {
+    console.warn(`Invalid work months: ${validated.workMonths}`);
+    validated.workMonths = null;
+  }
+
+  // ולידציה של הפרשות לקופת גמל
+  if (
+    validated.pensionContribution &&
+    (validated.pensionContribution < 0 ||
+      validated.pensionContribution > validated.income * 0.2)
+  ) {
+    console.warn(
+      `Invalid pension contribution: ${validated.pensionContribution}`
+    );
+    validated.pensionContribution = null;
+  }
+
+  // ולידציה של שדות טקסט - בדיקה שהם לא מספרים
+  if (validated.firstName && /^\d+$/.test(validated.firstName)) {
+    console.warn(`Invalid first name (numeric): ${validated.firstName}`);
+    validated.firstName = null;
+  }
+
+  if (validated.lastName && /^\d+$/.test(validated.lastName)) {
+    console.warn(`Invalid last name (numeric): ${validated.lastName}`);
+    validated.lastName = null;
+  }
+
+  if (validated.employerName && /^\d+$/.test(validated.employerName)) {
+    console.warn(`Invalid employer name (numeric): ${validated.employerName}`);
+    validated.employerName = null;
+  }
+
+  // ולידציה של שדות מספר - בדיקה שהם מספרים
+  if (validated.employeeId && !/^\d+$/.test(validated.employeeId)) {
+    console.warn(`Invalid employee ID (non-numeric): ${validated.employeeId}`);
+    validated.employeeId = null;
+  }
+
+  if (
+    validated.deductionFileNumber &&
+    !/^\d+$/.test(validated.deductionFileNumber)
+  ) {
+    console.warn(
+      `Invalid deduction file number (non-numeric): ${validated.deductionFileNumber}`
+    );
+    validated.deductionFileNumber = null;
+  }
+
+  return validated;
+}
+
+module.exports = {
+  parseText,
+  detectTemplate,
+  extractTaxFields,
+  validateExtractedData,
+};

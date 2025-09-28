@@ -2,7 +2,17 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useTaxCalculator } from "../context/TaxCalculatorContext";
 import { Dialog } from "@headlessui/react";
-import { CheckCircle, Sparkles, Calculator } from "lucide-react";
+import {
+  CheckCircle,
+  Sparkles,
+  Calculator,
+  Coins,
+  TrendingUp,
+  CreditCard,
+  Receipt,
+  FileText,
+  Calculator as CalcIcon,
+} from "lucide-react";
 
 export const ResultsDisplay: React.FC = () => {
   const navigate = useNavigate();
@@ -265,52 +275,83 @@ export const ResultsDisplay: React.FC = () => {
 
           {/* Data Grid */}
           <div className="p-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-2xl border border-blue-200">
-                <div className="text-blue-600 text-sm font-medium mb-2">
-                  הכנסה שנתית
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+              {/* הכנסה שנתית - כחול נייטרלי */}
+              <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex items-center mb-3">
+                  <Coins className="w-5 h-5 text-blue-600 mr-2" />
+                  <div className="text-blue-600 text-sm font-medium">
+                    הכנסה שנתית
+                  </div>
                 </div>
-                <div className="text-2xl font-bold text-blue-800">
+                <div className="text-2xl font-bold text-gray-900">
                   {incomeNum.toLocaleString()} ₪
                 </div>
               </div>
-              <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-6 rounded-2xl border border-orange-200">
-                <div className="text-orange-600 text-sm font-medium mb-2">
-                  מס ששולם
+
+              {/* מס ששולם - אדום (חוב/מס) */}
+              <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex items-center mb-3">
+                  <span className="w-5 h-5 mr-2 inline-flex items-center justify-center text-red-600 font-bold text-base">
+                    ₪
+                  </span>
+                  <div className="text-red-600 text-sm font-medium">
+                    מס ששולם
+                  </div>
                 </div>
-                <div className="text-2xl font-bold text-orange-800">
+                <div className="text-2xl font-bold text-gray-900">
                   {taxPaidNum.toLocaleString()} ₪
                 </div>
               </div>
-              <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-2xl border border-purple-200">
-                <div className="text-purple-600 text-sm font-medium mb-2">
-                  נקודות זיכוי
+
+              {/* נקודות זיכוי - כחול נייטרלי */}
+              <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex items-center mb-3">
+                  <CalcIcon className="w-5 h-5 text-blue-600 mr-2" />
+                  <div className="text-blue-600 text-sm font-medium">
+                    נקודות זיכוי
+                  </div>
                 </div>
-                <div className="text-2xl font-bold text-purple-800">
+                <div className="text-2xl font-bold text-gray-900">
                   {creditPointsNum.toFixed(2)}
                 </div>
               </div>
-              <div className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-2xl border border-green-200">
-                <div className="text-green-600 text-sm font-medium mb-2">
-                  ערך נקודות זיכוי
+
+              {/* ערך נקודות זיכוי - ירוק (חיובי/זיכוי) */}
+              <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex items-center mb-3">
+                  <TrendingUp className="w-5 h-5 text-green-600 mr-2" />
+                  <div className="text-green-600 text-sm font-medium">
+                    ערך נקודות זיכוי
+                  </div>
                 </div>
-                <div className="text-2xl font-bold text-green-800">
+                <div className="text-2xl font-bold text-gray-900">
                   {creditValueNum.toLocaleString()} ₪
                 </div>
               </div>
-              <div className="bg-gradient-to-br from-red-50 to-red-100 p-6 rounded-2xl border border-red-200">
-                <div className="text-red-600 text-sm font-medium mb-2">
-                  מס גולמי
+
+              {/* מס גולמי - אדום (חוב/מס) */}
+              <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex items-center mb-3">
+                  <FileText className="w-5 h-5 text-red-600 mr-2" />
+                  <div className="text-red-600 text-sm font-medium">
+                    מס גולמי
+                  </div>
                 </div>
-                <div className="text-2xl font-bold text-red-800">
+                <div className="text-2xl font-bold text-gray-900">
                   {grossTaxNum.toLocaleString()} ₪
                 </div>
               </div>
-              <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-6 rounded-2xl border border-gray-200">
-                <div className="text-gray-600 text-sm font-medium mb-2">
-                  מס נטו
+
+              {/* מס נטו - כחול נייטרלי */}
+              <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex items-center mb-3">
+                  <CreditCard className="w-5 h-5 text-blue-600 mr-2" />
+                  <div className="text-blue-600 text-sm font-medium">
+                    מס נטו
+                  </div>
                 </div>
-                <div className="text-2xl font-bold text-gray-800">
+                <div className="text-2xl font-bold text-gray-900">
                   {netTaxNum.toLocaleString()} ₪
                 </div>
               </div>
@@ -391,9 +432,11 @@ export const ResultsDisplay: React.FC = () => {
             </div>
           </div>
         </div>
-        <div className="mt-4 p-4 bg-blue-50 rounded-xl shadow-sm">
-          <h4 className="font-medium text-blue-800 mb-1">הסבר:</h4>
-          <p className="text-sm text-blue-700">{explanationStr}</p>
+        <div className="mt-8 p-6 bg-gray-50 rounded-xl border border-gray-200 shadow-sm">
+          <h4 className="font-semibold text-gray-900 mb-3 text-lg">
+            הסבר מפורט:
+          </h4>
+          <p className="text-gray-700 leading-relaxed">{explanationStr}</p>
         </div>
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-8">
           <div className="flex gap-2 w-full sm:w-auto">
