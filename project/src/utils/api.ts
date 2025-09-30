@@ -86,6 +86,25 @@ export async function apiDeleteMyData(token: string, deleteAccount = false): Pro
   return res.json();
 }
 
+// Google OAuth API
+export async function apiGoogleSignIn(): Promise<{ url: string }> {
+  const res = await fetch(`${BASE_URL}/api/auth/google`, {
+    method: "GET",
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function apiGoogleCallback(code: string): Promise<AuthResponse> {
+  const res = await fetch(`${BASE_URL}/api/auth/google/callback`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code }),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
 
 // Reports API
 export type ReportItem = {

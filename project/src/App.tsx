@@ -7,6 +7,7 @@ import { Header } from "./components/Header";
 import { Footer } from "./components/Footer";
 import { TaxCalculatorProvider } from "./context/TaxCalculatorContext";
 import { AuthPanel } from "./components/auth/AuthPanel";
+import { GoogleCallback } from "./components/auth/GoogleCallback";
 
 // Session timeout duration in milliseconds (30 minutes)
 const SESSION_TIMEOUT = 30 * 60 * 1000;
@@ -215,26 +216,34 @@ function App() {
         )}
 
         <main className="flex-grow py-8 px-4 sm:px-6 lg:px-8 bg-blue-50">
-          {!token ? (
-            <div className="flex items-center justify-center">
-              <div className="w-11/12 max-w-sm md:w-full md:max-w-md">
-                <AuthPanel />
-              </div>
-            </div>
-          ) : (
-            <Routes>
+          <Routes>
+            <Route path="/auth/callback" element={<GoogleCallback />} />
+            {!token ? (
               <Route
-                path="/"
+                path="/*"
                 element={
                   <div className="flex items-center justify-center">
-                    <Calculator />
+                    <div className="w-11/12 max-w-sm md:w-full md:max-w-md">
+                      <AuthPanel />
+                    </div>
                   </div>
                 }
               />
-              <Route path="/history" element={<HistoryPage />} />
-              <Route path="/results" element={<ResultsDisplay />} />
-            </Routes>
-          )}
+            ) : (
+              <>
+                <Route
+                  path="/"
+                  element={
+                    <div className="flex items-center justify-center">
+                      <Calculator />
+                    </div>
+                  }
+                />
+                <Route path="/history" element={<HistoryPage />} />
+                <Route path="/results" element={<ResultsDisplay />} />
+              </>
+            )}
+          </Routes>
         </main>
         <Footer />
       </TaxCalculatorProvider>

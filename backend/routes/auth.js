@@ -80,4 +80,50 @@ router.post("/reset-password", async (req, res) => {
   }
 });
 
+// Google OAuth routes
+router.get("/google", async (req, res) => {
+  try {
+    const supabase = await getSupabaseClient();
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${
+          process.env.FRONTEND_URL || "http://localhost:5173"
+        }/auth/callback`,
+      },
+    });
+
+    if (error) {
+      return res.status(400).json({ error: error.message });
+    }
+
+    res.json({ url: data.url });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post("/google/callback", async (req, res) => {
+  try {
+    const supabase = await getSupabaseClient();
+    const { code } = req.body;
+
+    if (!code) {
+      return res.status(400).json({ error: "Authorization code is required" });
+    }
+
+    const { data, error } = await supabase.auth.exchangeCodeForSession({
+      auth_code: code,
+    });
+
+    if (error) {
+      return res.status(400).json({ error: error.message });
+    }
+
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
