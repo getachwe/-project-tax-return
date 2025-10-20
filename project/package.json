@@ -12,6 +12,7 @@
     "backend": "node ../backend/server.js"
   },
   "dependencies": {
+    "@headlessui/react": "^2.2.9",
     "@hookform/resolvers": "^3.3.4",
     "@supabase/supabase-js": "^2.58.0",
     "axios": "^1.6.7",
