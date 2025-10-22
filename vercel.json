@@ -4,7 +4,7 @@
       "src": "project/package.json", 
       "use": "@vercel/static-build", 
       "config": { 
-        "distDir": "dist"
+        "distDir": "project/dist"
       } 
     },
     { "src": "backend/api/index.js", "use": "@vercel/node" }
