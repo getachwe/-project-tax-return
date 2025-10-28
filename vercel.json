@@ -2,8 +2,7 @@
   "builds": [
     {
       "src": "project/package.json",
-      "use": "@vercel/static-build",
-      "config": { "distDir": "dist" }
+      "use": "@vercel/static-build"
     },
     {
       "src": "backend/api/index.js",
@@ -11,7 +10,9 @@
     }
   ],
   "routes": [
-    { "src": "/api/(.*)", "dest": "backend/api/index.js" },
-    { "src": "/(.*)", "dest": "project/dist/$1" }
+    { "src": "/api/(.*)", "dest": "backend/api/index.js" }
+  ],
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/project/dist/index.html" }
   ]
 }
