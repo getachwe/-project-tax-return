@@ -19,7 +19,6 @@
   },
   "devDependencies": {
     "@types/react-router-dom": "^5.3.3",
-    "@vitejs/plugin-react": "^5.1.0",
-    "jest": "^29.7.0"
+       "jest": "^29.7.0"
   }
 }
