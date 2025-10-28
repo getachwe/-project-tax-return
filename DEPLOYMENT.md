@@ -5,11 +5,13 @@
 Create environment variables in Vercel dashboard:
 
 ### Supabase Configuration
+
 - `SUPABASE_URL` - Your Supabase project URL
-- `SUPABASE_ANON_KEY` - Your Supabase anonymous key  
+- `SUPABASE_ANON_KEY` - Your Supabase anonymous key
 - `SUPABASE_SERVICE_KEY` - Your Supabase service role key
 
 ### Email Configuration (Optional)
+
 - `SMTP_HOST` - SMTP server host (e.g., smtp.gmail.com)
 - `SMTP_PORT` - SMTP port (e.g., 587)
 - `SMTP_SECURE` - Use SSL (true/false)
@@ -18,6 +20,7 @@ Create environment variables in Vercel dashboard:
 - `SMTP_FROM` - From email address
 
 ### Frontend Configuration
+
 - `VITE_API_URL` - API base URL (leave empty for relative paths)
 
 ## Deployment Steps
