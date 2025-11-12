@@ -1,22 +1,26 @@
 {
   "builds": [
+
     {
       "src": "project/package.json",
       "use": "@vercel/static-build"
     },
+   
     {
-      "src": "backend/package.json",
+      "src": "backend/package.json", 
       "use": "@vercel/node"
     }
   ],
   "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "backend/api/index.js"
+  
+    { 
+      "src": "/api/(.*)", 
+      "dest": "backend/api/index.js" 
     },
-    {
-      "src": "/(.*)",
-      "dest": "/project/dist/index.html"
+   
+    { 
+      "src": "/(.*)", 
+      "dest": "/project/dist/index.html" 
     }
   ]
 }
