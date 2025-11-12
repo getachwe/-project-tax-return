@@ -5,14 +5,18 @@
       "use": "@vercel/static-build"
     },
     {
-      "src": "backend/api/index.js",
+      "src": "backend/package.json",
       "use": "@vercel/node"
     }
   ],
   "routes": [
-    { "src": "/api/(.*)", "dest": "backend/api/index.js" }
-  ],
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/project/dist/index.html" }
+    {
+      "src": "/api/(.*)",
+      "dest": "backend/api/index.js"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/project/dist/index.html"
+    }
   ]
 }
