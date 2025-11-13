@@ -22,6 +22,7 @@ Create environment variables in Vercel dashboard:
 ### Frontend Configuration
 
 - `VITE_API_URL` - API base URL (leave empty for relative paths)
+- `FRONTEND_URL` - Frontend URL for OAuth callbacks (e.g., https://your-app.vercel.app)
 
 ## Deployment Steps
 

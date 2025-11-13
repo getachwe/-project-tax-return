@@ -10,13 +10,9 @@
     }
   ],
   
-  "rewrites": [
-    { "source": "/api/auth/callback", "destination": "/backend/api/index.js" },
-    
-    { "source": "/api/(.*)", "destination": "/backend/api/index.js" },
-    
-    { "source": "/assets/(.*)", "destination": "/project/dist/assets/$1" },
-
-    { "source": "/(.*)", "destination": "/project/dist/index.html" }
+  "routes": [
+    { "src": "/api/(.*)", "dest": "/backend/api/index.js" },
+    { "src": "/assets/(.*)", "dest": "/project/dist/assets/$1" },
+    { "src": "/(.*)", "dest": "/project/dist/index.html" }
   ]
 }

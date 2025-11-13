@@ -10,16 +10,16 @@ function createApp() {
 
   app.get("/health", (req, res) => {
     res.json({ status: "ok" });
-  }); // Modular routers - Removed redundant '/api' prefix
+  }); // API routes with /api prefix for Vercel compatibility
 
-  app.use("/auth", require("./routes/auth"));
-  app.use("/profile", require("./routes/profile"));
-  app.use("/calculations", require("./routes/calculations"));
-  app.use("/process-106", require("./routes/process106"));
-  app.use("/", require("./routes/pdf"));
-  app.use("/", require("./routes/email"));
-  app.use("/", require("./routes/reports"));
-  app.use("/", require("./routes/calculate"));
+  app.use("/api/auth", require("./routes/auth"));
+  app.use("/api/profile", require("./routes/profile"));
+  app.use("/api/calculations", require("./routes/calculations"));
+  app.use("/api/process-106", require("./routes/process106"));
+  app.use("/api", require("./routes/pdf"));
+  app.use("/api", require("./routes/email"));
+  app.use("/api", require("./routes/reports"));
+  app.use("/api", require("./routes/calculate"));
 
   return app;
 }
