@@ -3,26 +3,23 @@ const express = require("express");
 const cors = require("cors");
 
 function createApp() {
-  const app = express();
+  const app = express(); // Middlewares
 
-  // Middlewares
   app.use(cors());
-  app.use(express.json());
+  app.use(express.json()); // Health check
 
-  // Health check
-  app.get("/api/health", (req, res) => {
+  app.get("/health", (req, res) => {
     res.json({ status: "ok" });
-  });
+  }); // Modular routers - Removed redundant '/api' prefix
 
-  // Modular routers
-  app.use("/api/auth", require("./routes/auth"));
-  app.use("/api/profile", require("./routes/profile"));
-  app.use("/api/calculations", require("./routes/calculations"));
-  app.use("/api/process-106", require("./routes/process106"));
-  app.use("/api", require("./routes/pdf"));
-  app.use("/api", require("./routes/email"));
-  app.use("/api", require("./routes/reports"));
-  app.use("/api", require("./routes/calculate"));
+  app.use("/auth", require("./routes/auth"));
+  app.use("/profile", require("./routes/profile"));
+  app.use("/calculations", require("./routes/calculations"));
+  app.use("/process-106", require("./routes/process106"));
+  app.use("/", require("./routes/pdf"));
+  app.use("/", require("./routes/email"));
+  app.use("/", require("./routes/reports"));
+  app.use("/", require("./routes/calculate"));
 
   return app;
 }
