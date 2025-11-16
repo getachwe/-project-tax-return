@@ -84,37 +84,66 @@ router.post("/reset-password", async (req, res) => {
 router.get("/google", async (req, res) => {
   try {
     const supabase = await getSupabaseClient();
-    
+
     // Determine the correct redirect URL based on the request origin
+    // IMPORTANT: This MUST match exactly what's configured in Supabase Dashboard
     let redirectTo;
+    
+    // Check if FRONTEND_URL is set (production)
     if (process.env.FRONTEND_URL) {
       redirectTo = `${process.env.FRONTEND_URL}/auth/callback`;
     } else {
-      // Try to get from request headers (for local development)
+      // For local development, try to get from request headers
       const origin = req.headers.origin || req.headers.referer;
-      if (origin && (origin.includes("localhost") || origin.includes("127.0.0.1"))) {
-        redirectTo = "http://localhost:5173/auth/callback";
+      
+      if (origin) {
+        // Extract base URL from origin/referer
+        try {
+          const url = new URL(origin);
+          redirectTo = `${url.origin}/auth/callback`;
+        } catch (e) {
+          // If URL parsing fails, use localhost fallback
+          redirectTo = "http://localhost:5173/auth/callback";
+        }
       } else {
         // Fallback to localhost for development
         redirectTo = "http://localhost:5173/auth/callback";
       }
     }
-    
+
+    // Normalize the URL (remove trailing slash if present)
+    redirectTo = redirectTo.replace(/\/$/, "");
+    if (!redirectTo.endsWith("/auth/callback")) {
+      redirectTo = `${redirectTo}/auth/callback`;
+    }
+
     console.log("Google OAuth redirectTo:", redirectTo);
-    
+    console.log("Request origin:", req.headers.origin);
+    console.log("Request referer:", req.headers.referer);
+    console.log("FRONTEND_URL env:", process.env.FRONTEND_URL);
+
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
         redirectTo: redirectTo,
+        queryParams: {
+          // Add any additional query params if needed
+        },
       },
     });
 
     if (error) {
       console.error("Supabase OAuth error:", error);
-      return res.status(400).json({ error: error.message });
+      console.error("Error details:", JSON.stringify(error, null, 2));
+      return res.status(400).json({ 
+        error: error.message,
+        redirectTo: redirectTo,
+        hint: "Make sure this redirectTo URL is configured in Supabase Dashboard → Authentication → URL Configuration → Redirect URLs"
+      });
     }
 
-    res.json({ url: data.url });
+    console.log("Google OAuth URL generated successfully");
+    res.json({ url: data.url, redirectTo: redirectTo });
   } catch (err) {
     console.error("Google OAuth route error:", err);
     res.status(500).json({ error: err.message });

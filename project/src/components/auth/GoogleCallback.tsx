@@ -34,14 +34,15 @@ export const GoogleCallback: React.FC = () => {
         let errorCode = searchParams.get("error_code");
         let errorDescription = searchParams.get("error_description");
         const accessTokenFromSearch = searchParams.get("access_token");
-        
+
         // Also check hash for errors (Supabase sometimes puts them in hash)
         const hashParams = new URLSearchParams(
           window.location.hash.substring(1).split("?")[0] || ""
         );
         if (!error) error = hashParams.get("error");
         if (!errorCode) errorCode = hashParams.get("error_code");
-        if (!errorDescription) errorDescription = hashParams.get("error_description");
+        if (!errorDescription)
+          errorDescription = hashParams.get("error_description");
 
         // Some providers (or routers with hash) place params after '#'
         if (!code) {
@@ -95,42 +96,43 @@ export const GoogleCallback: React.FC = () => {
         if (error) {
           setStatus("error");
           let errorMsg = "התחברות נכשלה. אנא נסה שוב.";
-          
+
           if (errorDescription) {
             try {
               errorMsg = decodeURIComponent(errorDescription);
             } catch (e) {
               errorMsg = errorDescription;
             }
-          } else if (error === "server_error" || errorCode === "unexpected_failure") {
-            // This usually means redirectTo URL doesn't match Supabase configuration
-            errorMsg = `שגיאת שרת: לא ניתן להחליף קוד הרשאה. 
-            
+          } else if (
+            error === "server_error" ||
+            errorCode === "unexpected_failure"
+          ) {
+            // This error usually means redirectTo URL doesn't match Supabase configuration
+            const currentOrigin = window.location.origin;
+            const expectedRedirectUrl = `${currentOrigin}/auth/callback`;
+            errorMsg = `שגיאת שרת: לא ניתן להחליף קוד הרשאה.
+
 הסיבה הנפוצה: ה-URL של ההתחברות לא מוגדר נכון ב-Supabase Dashboard.
 
 פתרון:
 1. פתח Supabase Dashboard → Authentication → URL Configuration
-2. ודא ש-"Redirect URLs" כולל: ${window.location.origin}/auth/callback
-3. ודא ש-"Site URL" מוגדר ל: ${window.location.origin}
+2. הוסף ל-Redirect URLs את ה-URL הבא (בדיוק כזה!):
+   ${expectedRedirectUrl}
+3. ודא שה-URL בדיוק כזה (ללא סלאש בסוף, ללא http/https שגוי)
+4. לחץ Save
 
 אם זה עדיין לא עובד, בדוק את ה-logs ב-Supabase Dashboard → Logs → Auth.`;
           } else if (error === "access_denied") {
             errorMsg = "ההרשאה נדחתה. אנא נסה שוב.";
           }
-          
+
           setMessage(errorMsg);
-          console.error("OAuth error:", { error, errorCode, errorDescription, url: window.location.href });
-          
-          // Log detailed error for debugging
-          if (error === "server_error" || errorCode === "unexpected_failure") {
-            console.error("Possible causes:");
-            console.error("1. redirectTo URL doesn't match Supabase Redirect URLs configuration");
-            console.error("2. Google OAuth Client ID/Secret not configured correctly in Supabase");
-            console.error("3. Code has already been used or expired");
-            console.error("Current origin:", window.location.origin);
-            console.error("Expected redirect URL:", `${window.location.origin}/auth/callback`);
-          }
-          
+          console.error("OAuth error:", {
+            error,
+            errorCode,
+            errorDescription,
+            url: window.location.href,
+          });
           return;
         }
 
@@ -210,29 +212,13 @@ export const GoogleCallback: React.FC = () => {
               <h2 className="text-2xl font-bold text-gray-900 mb-2">
                 שגיאה בהתחברות
               </h2>
-              <div className="text-gray-600 mb-4 text-right whitespace-pre-line text-sm bg-gray-50 p-4 rounded-lg border border-gray-200">
-                {message}
-              </div>
-              <div className="space-y-2">
-                <button
-                  onClick={() => navigate("/auth")}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors"
-                >
-                  חזור לדף ההתחברות
-                </button>
-                {(message.includes("redirectTo") || message.includes("Redirect URLs")) && (
-                  <button
-                    onClick={() => {
-                      const currentUrl = `${window.location.origin}/auth/callback`;
-                      const alertMsg = `אנא ודא שב-Supabase Dashboard:\n\n1. פתח Authentication → URL Configuration\n2. הוסף ל-Redirect URLs:\n   ${currentUrl}\n\n3. ודא שה-URL בדיוק כזה (ללא סלאש בסוף!)\n4. לחץ Save`;
-                      alert(alertMsg);
-                    }}
-                    className="w-full text-sm text-blue-600 hover:text-blue-800 underline"
-                  >
-                    הצג URL לבדיקה ב-Supabase
-                  </button>
-                )}
-              </div>
+              <p className="text-gray-600 mb-4">{message}</p>
+              <button
+                onClick={() => navigate("/auth")}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors"
+              >
+                חזור לדף ההתחברות
+              </button>
             </>
           )}
         </div>
