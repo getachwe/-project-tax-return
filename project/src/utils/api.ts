@@ -170,3 +170,70 @@ export async function apiDeleteReport(token: string, id: string): Promise<{ succ
   return res.json();
 }
 
+// Process 106 file upload
+export async function apiProcess106(file: File): Promise<{
+  success: boolean;
+  data?: Record<string, unknown>;
+  error?: string;
+  missingFields?: string[];
+}> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const res = await fetch(`${BASE_URL}/api/process-106`, {
+    method: "POST",
+    body: formData,
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+// Send tax return email
+export async function apiSendTaxReturnEmail(
+  token: string,
+  taxData: any,
+  email: string,
+  reportId?: string
+): Promise<{ success: boolean }> {
+  const res = await fetch(`${BASE_URL}/api/send-tax-return-email`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeader(token),
+    },
+    body: JSON.stringify({ taxData, email, reportId }),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+// Calculate tax
+export async function apiCalculateTax(taxData: any): Promise<any> {
+  const res = await fetch(`${BASE_URL}/api/calculate-tax`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(taxData),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+// Generate PDF
+export async function apiGeneratePdf(
+  token: string,
+  taxData: any,
+  saveToStorage = false
+): Promise<{ blob: Blob; reportId?: string }> {
+  const res = await fetch(`${BASE_URL}/api/generate-pdf`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeader(token),
+    },
+    body: JSON.stringify({ ...taxData, saveToStorage }),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  const blob = await res.blob();
+  const reportId = res.headers.get("X-Report-ID") || undefined;
+  return { blob, reportId };
+}
+

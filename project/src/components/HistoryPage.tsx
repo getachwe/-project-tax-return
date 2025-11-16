@@ -5,6 +5,7 @@ import {
   apiDeleteReport,
   apiGetReportDownloadUrl,
   apiGetReports,
+  apiSendTaxReturnEmail,
   ReportItem,
 } from "../utils/api";
 import {
@@ -162,25 +163,12 @@ export const HistoryPage: React.FC = () => {
     setEmailStatus("loading");
     setEmailingIds((prev) => new Set(prev).add(selectedItem.id));
     try {
-      const response = await fetch(
-        "http://localhost:4000/api/send-tax-return-email",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            taxData: selectedItem.taxData,
-            email: emailAddress,
-            reportId: selectedItem.id,
-          }),
-        }
+      await apiSendTaxReturnEmail(
+        token,
+        selectedItem.taxData,
+        emailAddress,
+        selectedItem.id
       );
-
-      if (!response.ok) {
-        throw new Error("שגיאה בשליחת המייל");
-      }
 
       setEmailStatus("success");
       setEmailModalOpen(false);

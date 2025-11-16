@@ -31,6 +31,7 @@ export const GoogleCallback: React.FC = () => {
         const searchParams = new URLSearchParams(window.location.search);
         let code = searchParams.get("code");
         let error = searchParams.get("error");
+        const errorDescription = searchParams.get("error_description");
         const accessTokenFromSearch = searchParams.get("access_token");
 
         // Some providers (or routers with hash) place params after '#'
@@ -84,7 +85,15 @@ export const GoogleCallback: React.FC = () => {
 
         if (error) {
           setStatus("error");
-          setMessage("התחברות נכשלה. אנא נסה שוב.");
+          const errorMsg = errorDescription 
+            ? decodeURIComponent(errorDescription) 
+            : error === "server_error" 
+            ? "שגיאת שרת. אנא נסה שוב או פנה לתמיכה."
+            : error === "access_denied"
+            ? "ההרשאה נדחתה. אנא נסה שוב."
+            : "התחברות נכשלה. אנא נסה שוב.";
+          setMessage(errorMsg);
+          console.error("OAuth error:", error, errorDescription);
           return;
         }
 

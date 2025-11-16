@@ -7,6 +7,7 @@ import { UploadTips } from "./UploadTips";
 import { UploadProgress } from "./UploadProgress";
 import { MissingDataForm } from "./MissingDataForm";
 import Toast from "../../Toast";
+import { apiProcess106 } from "../../../utils/api";
 
 export const UploadForm: React.FC = () => {
   const { goToNextStep, setTaxData } = useTaxCalculator();
@@ -35,16 +36,7 @@ export const UploadForm: React.FC = () => {
     setSelectedFile(file);
 
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const response = await fetch("http://localhost:4000/api/process-106", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) throw new Error("שגיאה בעיבוד הקובץ");
-
-      const result = await response.json();
+      const result = await apiProcess106(file);
       if (!result.success) throw new Error(result.error || "שגיאה לא ידועה");
 
       setExtractedData(result.data);

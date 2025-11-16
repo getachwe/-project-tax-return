@@ -65,15 +65,6 @@ export const ResultsDisplay: React.FC = () => {
     return undefined;
   };
 
-  // Base URL: in local dev (Vite on 5173) use backend 4000, otherwise same origin
-  const isViteDev =
-    typeof window !== "undefined" && window.location.port === "5173";
-  const isLocalHost =
-    typeof window !== "undefined" &&
-    (window.location.hostname === "localhost" ||
-      window.location.hostname === "127.0.0.1");
-  const API_BASE = isViteDev || isLocalHost ? "http://localhost:4000" : "";
-
   useEffect(() => {
     console.log("ResultsDisplay useEffect triggered");
     console.log("location.state:", location.state);
@@ -127,76 +118,53 @@ export const ResultsDisplay: React.FC = () => {
     );
     setLoading(true);
     setError(null);
-    fetch(`${API_BASE}/api/calculate-tax`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(currentTaxData),
-    })
-      .then(async (res) => {
-        const data = await parseJsonSafe(res);
-        if (!res.ok) {
-          const msg = extractErrorMessage(data) || "שגיאה בחישוב המס";
-          throw new Error(msg);
-        }
-        return data;
-      })
-      .then(async (data) => {
-        setResult(data);
-        setLoading(false);
-        console.log("Backend result:", data);
-        // Auto-save report for logged-in users
-        try {
-          const token = localStorage.getItem("authToken");
-          if (token) {
-            saveStatusRef.current = "saving";
-            console.log(
-              "Auto-saving report with currentTaxData:",
-              currentTaxData
-            );
-            console.log("Calculation result:", data);
+    
+    // Import API functions dynamically to avoid circular dependencies
+    import("../utils/api").then(({ apiCalculateTax, apiGeneratePdf }) => {
+      apiCalculateTax(currentTaxData)
+        .then(async (data) => {
+          setResult(data);
+          setLoading(false);
+          console.log("Backend result:", data);
+          // Auto-save report for logged-in users
+          try {
+            const token = localStorage.getItem("authToken");
+            if (token) {
+              saveStatusRef.current = "saving";
+              console.log(
+                "Auto-saving report with currentTaxData:",
+                currentTaxData
+              );
+              console.log("Calculation result:", data);
 
-            // Generate PDF and save to storage
-            const response = await fetch(`${API_BASE}/api/generate-pdf`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-              },
-              body: JSON.stringify({
-                ...currentTaxData,
-                ...data, // Include calculation results
-                saveToStorage: true,
-              }),
-            });
-
-            if (response.ok) {
-              console.log("Report saved successfully!");
-              const reportId = response.headers.get("X-Report-ID");
-              if (reportId) {
-                console.log("Report ID:", reportId);
+              // Generate PDF and save to storage
+              try {
+                const { reportId } = await apiGeneratePdf(token, { ...currentTaxData, ...data }, true);
+                console.log("Report saved successfully!");
+                if (reportId) {
+                  console.log("Report ID:", reportId);
+                }
+                saveStatusRef.current = "saved";
+              } catch (error) {
+                console.error("Error saving report:", error);
+                saveStatusRef.current = "error";
               }
-              saveStatusRef.current = "saved";
             } else {
-              console.error("Failed to save report:", response.status);
-              const errorText = await response.text();
-              console.error("Error details:", errorText);
-              saveStatusRef.current = "error";
+              console.log("No token found, not saving report");
+              saveStatusRef.current = "idle";
             }
-          } else {
-            console.log("No token found, not saving report");
-            saveStatusRef.current = "idle";
+          } catch (error) {
+            console.error("Error saving report:", error);
+            saveStatusRef.current = "error";
           }
-        } catch (error) {
-          console.error("Error saving report:", error);
-          saveStatusRef.current = "error";
-        }
-      })
-      .catch((error) => {
-        console.error("Fetch error:", error);
-        setError(error.message || "שגיאה בחישוב המס");
-        setLoading(false);
-      });
-  }, [taxData, location.state, currentTaxData, API_BASE]);
+        })
+        .catch((error) => {
+          console.error("Fetch error:", error);
+          setError(error.message || "שגיאה בחישוב המס");
+          setLoading(false);
+        });
+    });
+  }, [taxData, location.state, currentTaxData]);
 
   if (loading)
     return (
