@@ -6,20 +6,28 @@
 
 ## פתרון: הגדרת Redirect URLs ב-Supabase
 
-### שלב 1: הגדרת Redirect URLs ב-Supabase Dashboard
+### שלב 1: הגדרת Redirect URLs ב-Supabase Dashboard (חשוב מאוד!)
+
+**השגיאה "Unable to exchange external code" מתרחשת כאשר ה-`redirectTo` URL לא תואם בדיוק ל-URL שהוגדר ב-Supabase Dashboard.**
 
 1. פתח את [Supabase Dashboard](https://app.supabase.com/)
 2. בחר את הפרויקט שלך
 3. עבור ל-**Authentication** → **URL Configuration**
-4. הוסף את ה-URLs הבאים ל-**Redirect URLs**:
-   - `http://localhost:5173/auth/callback` (לפיתוח מקומי)
-   - `https://project-tax-return.vercel.app/auth/callback` (לפרודקשן)
-   - `http://localhost:5173/**` (אופציונלי - לכל ה-URLs מקומיים)
-   - `https://project-tax-return.vercel.app/**` (אופציונלי - לכל ה-URLs בפרודקשן)
+4. הוסף את ה-URLs הבאים ל-**Redirect URLs** (חשוב: ללא סלאש בסוף):
+   - `http://localhost:5173/auth/callback` (לפיתוח מקומי - **חייב** להיות בדיוק כזה)
+   - `https://project-tax-return.vercel.app/auth/callback` (לפרודקשן - **חייב** להיות בדיוק כזה)
+   
+   **אפשרויות נוספות** (אם אתה רוצה לטפל בכל ה-URLs):
+   - `http://localhost:5173/**` (כל ה-URLs מקומיים)
+   - `https://project-tax-return.vercel.app/**` (כל ה-URLs בפרודקשן)
 
-5. הוסף את ה-URLs הבאים ל-**Site URL**:
+5. הגדר את ה-**Site URL**:
    - לפיתוח: `http://localhost:5173`
    - לפרודקשן: `https://project-tax-return.vercel.app`
+   
+   **הערה**: ה-Site URL יכול להיות אחד מהערכים האלה, אבל ה-Redirect URLs חייבים לכלול את ה-URL המדויק עם `/auth/callback`.
+
+6. לחץ על **Save** כדי לשמור את השינויים
 
 ### שלב 2: הגדרת משתני סביבה
 
