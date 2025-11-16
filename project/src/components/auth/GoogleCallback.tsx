@@ -112,16 +112,42 @@ export const GoogleCallback: React.FC = () => {
             const expectedRedirectUrl = `${currentOrigin}/auth/callback`;
             errorMsg = `שגיאת שרת: לא ניתן להחליף קוד הרשאה.
 
-הסיבה הנפוצה: ה-URL של ההתחברות לא מוגדר נכון ב-Supabase Dashboard.
+🔴 הבעיה: ה-URL של ההתחברות לא מוגדר נכון ב-Supabase Dashboard.
 
-פתרון:
-1. פתח Supabase Dashboard → Authentication → URL Configuration
-2. הוסף ל-Redirect URLs את ה-URL הבא (בדיוק כזה!):
+✅ פתרון שלב אחר שלב:
+
+1. פתח Supabase Dashboard:
+   https://app.supabase.com/
+
+2. בחר את הפרויקט שלך
+
+3. עבור ל-Authentication (בתפריט השמאלי)
+
+4. לחץ על "URL Configuration"
+
+5. במקטע "Redirect URLs", לחץ על "Add URL"
+
+6. הכנס את ה-URL הבא (העתק בדיוק!):
    ${expectedRedirectUrl}
-3. ודא שה-URL בדיוק כזה (ללא סלאש בסוף, ללא http/https שגוי)
-4. לחץ Save
 
-אם זה עדיין לא עובד, בדוק את ה-logs ב-Supabase Dashboard → Logs → Auth.`;
+⚠️ חשוב מאוד:
+   • ללא סלאש בסוף
+   • עם http:// (לא https://)
+   • עם פורט 5173
+   • בדיוק כפי שמוצג למעלה
+
+7. לחץ "Save"
+
+8. ודא שה-Google OAuth Provider מוגדר:
+   • Authentication → Providers → Google
+   • Enabled = ON
+   • Client ID ו-Client Secret מוגדרים
+
+9. נסה להתחבר שוב
+
+אם זה עדיין לא עובד:
+   • בדוק את ה-logs ב-Supabase Dashboard → Logs → Auth
+   • ודא שה-backend רץ ובדוק את ה-logs שלו`;
           } else if (error === "access_denied") {
             errorMsg = "ההרשאה נדחתה. אנא נסה שוב.";
           }
