@@ -88,27 +88,14 @@ router.get("/google", async (req, res) => {
     // Determine the correct redirect URL based on the request origin
     // IMPORTANT: This MUST match exactly what's configured in Supabase Dashboard
     let redirectTo;
-    
+
     // Check if FRONTEND_URL is set (production)
     if (process.env.FRONTEND_URL) {
       redirectTo = `${process.env.FRONTEND_URL}/auth/callback`;
     } else {
-      // For local development, try to get from request headers
-      const origin = req.headers.origin || req.headers.referer;
-      
-      if (origin) {
-        // Extract base URL from origin/referer
-        try {
-          const url = new URL(origin);
-          redirectTo = `${url.origin}/auth/callback`;
-        } catch (e) {
-          // If URL parsing fails, use localhost fallback
-          redirectTo = "http://localhost:5173/auth/callback";
-        }
-      } else {
-        // Fallback to localhost for development
-        redirectTo = "http://localhost:5173/auth/callback";
-      }
+      // For local development, ALWAYS use localhost:5173
+      // This ensures it matches what's configured in Supabase Dashboard
+      redirectTo = "http://localhost:5173/auth/callback";
     }
 
     // Normalize the URL (remove trailing slash if present)
@@ -117,10 +104,13 @@ router.get("/google", async (req, res) => {
       redirectTo = `${redirectTo}/auth/callback`;
     }
 
-    console.log("Google OAuth redirectTo:", redirectTo);
-    console.log("Request origin:", req.headers.origin);
-    console.log("Request referer:", req.headers.referer);
-    console.log("FRONTEND_URL env:", process.env.FRONTEND_URL);
+    console.log("=== Google OAuth Configuration ===");
+    console.log("redirectTo:", redirectTo);
+    console.log("FRONTEND_URL env:", process.env.FRONTEND_URL || "(not set - using localhost:5173)");
+    console.log("IMPORTANT: Make sure this URL is configured in Supabase Dashboard:");
+    console.log("  → Authentication → URL Configuration → Redirect URLs");
+    console.log("  → Add:", redirectTo);
+    console.log("===================================");
 
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "google",
@@ -135,10 +125,10 @@ router.get("/google", async (req, res) => {
     if (error) {
       console.error("Supabase OAuth error:", error);
       console.error("Error details:", JSON.stringify(error, null, 2));
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: error.message,
         redirectTo: redirectTo,
-        hint: "Make sure this redirectTo URL is configured in Supabase Dashboard → Authentication → URL Configuration → Redirect URLs"
+        hint: "Make sure this redirectTo URL is configured in Supabase Dashboard → Authentication → URL Configuration → Redirect URLs",
       });
     }
 
