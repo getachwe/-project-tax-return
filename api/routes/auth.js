@@ -84,21 +84,39 @@ router.post("/reset-password", async (req, res) => {
 router.get("/google", async (req, res) => {
   try {
     const supabase = await getSupabaseClient();
+    
+    // Determine the correct redirect URL based on the request origin
+    let redirectTo;
+    if (process.env.FRONTEND_URL) {
+      redirectTo = `${process.env.FRONTEND_URL}/auth/callback`;
+    } else {
+      // Try to get from request headers (for local development)
+      const origin = req.headers.origin || req.headers.referer;
+      if (origin && (origin.includes("localhost") || origin.includes("127.0.0.1"))) {
+        redirectTo = "http://localhost:5173/auth/callback";
+      } else {
+        // Fallback to localhost for development
+        redirectTo = "http://localhost:5173/auth/callback";
+      }
+    }
+    
+    console.log("Google OAuth redirectTo:", redirectTo);
+    
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${
-          process.env.FRONTEND_URL || "http://localhost:5173"
-        }/auth/callback`,
+        redirectTo: redirectTo,
       },
     });
 
     if (error) {
+      console.error("Supabase OAuth error:", error);
       return res.status(400).json({ error: error.message });
     }
 
     res.json({ url: data.url });
   } catch (err) {
+    console.error("Google OAuth route error:", err);
     res.status(500).json({ error: err.message });
   }
 });

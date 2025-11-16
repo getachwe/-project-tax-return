@@ -31,8 +31,17 @@ export const GoogleCallback: React.FC = () => {
         const searchParams = new URLSearchParams(window.location.search);
         let code = searchParams.get("code");
         let error = searchParams.get("error");
-        const errorDescription = searchParams.get("error_description");
+        let errorCode = searchParams.get("error_code");
+        let errorDescription = searchParams.get("error_description");
         const accessTokenFromSearch = searchParams.get("access_token");
+        
+        // Also check hash for errors (Supabase sometimes puts them in hash)
+        const hashParams = new URLSearchParams(
+          window.location.hash.substring(1).split("?")[0] || ""
+        );
+        if (!error) error = hashParams.get("error");
+        if (!errorCode) errorCode = hashParams.get("error_code");
+        if (!errorDescription) errorDescription = hashParams.get("error_description");
 
         // Some providers (or routers with hash) place params after '#'
         if (!code) {
@@ -85,15 +94,22 @@ export const GoogleCallback: React.FC = () => {
 
         if (error) {
           setStatus("error");
-          const errorMsg = errorDescription 
-            ? decodeURIComponent(errorDescription) 
-            : error === "server_error" 
-            ? "שגיאת שרת. אנא נסה שוב או פנה לתמיכה."
-            : error === "access_denied"
-            ? "ההרשאה נדחתה. אנא נסה שוב."
-            : "התחברות נכשלה. אנא נסה שוב.";
+          let errorMsg = "התחברות נכשלה. אנא נסה שוב.";
+          
+          if (errorDescription) {
+            try {
+              errorMsg = decodeURIComponent(errorDescription);
+            } catch (e) {
+              errorMsg = errorDescription;
+            }
+          } else if (error === "server_error" || errorCode === "unexpected_failure") {
+            errorMsg = "שגיאת שרת. ייתכן שה-URL של ההתחברות לא מוגדר נכון ב-Supabase. אנא בדוק את ההגדרות או פנה לתמיכה.";
+          } else if (error === "access_denied") {
+            errorMsg = "ההרשאה נדחתה. אנא נסה שוב.";
+          }
+          
           setMessage(errorMsg);
-          console.error("OAuth error:", error, errorDescription);
+          console.error("OAuth error:", { error, errorCode, errorDescription, url: window.location.href });
           return;
         }
 
