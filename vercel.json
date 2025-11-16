@@ -12,7 +12,6 @@
       "use": "@vercel/node"
     }
   ],
-  
   "routes": [
     { "src": "/api/(.*)", "dest": "/api/index.js" },
     { "src": "/assets/(.*)", "dest": "/project/dist/assets/$1" },
