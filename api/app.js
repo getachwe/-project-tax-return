@@ -13,16 +13,16 @@ function createApp() {
     res.json({ status: "ok" });
   });
 
-  // API routes - NO /api prefix because Vercel already handles it
-  // Vercel routes /api/* to this function, so we just need the path after /api
-  app.use("/auth", require("./routes/auth"));
-  app.use("/profile", require("./routes/profile"));
-  app.use("/calculations", require("./routes/calculations"));
-  app.use("/process-106", require("./routes/process106"));
-  app.use("/", require("./routes/pdf"));
-  app.use("/", require("./routes/email"));
-  app.use("/", require("./routes/reports"));
-  app.use("/", require("./routes/calculate"));
+  // API routes - With /api prefix because Vercel passes the full path
+  // When Vercel routes /api/* to this function, it passes the full path including /api
+  app.use("/api/auth", require("./routes/auth"));
+  app.use("/api/profile", require("./routes/profile"));
+  app.use("/api/calculations", require("./routes/calculations"));
+  app.use("/api/process-106", require("./routes/process106"));
+  app.use("/api", require("./routes/pdf"));
+  app.use("/api", require("./routes/email"));
+  app.use("/api", require("./routes/reports"));
+  app.use("/api", require("./routes/calculate"));
 
   return app;
 }
