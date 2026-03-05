@@ -7,15 +7,19 @@ let handler;
 try {
   const { createApp } = require("./app");
   app = createApp();
-  
+
   // Log route registration for debugging
   console.log("Express app routes registered:");
   app._router.stack.forEach((middleware) => {
     if (middleware.route) {
-      console.log(`  ${Object.keys(middleware.route.methods).join(",").toUpperCase()} ${middleware.route.path}`);
+      console.log(
+        `  ${Object.keys(middleware.route.methods).join(",").toUpperCase()} ${
+          middleware.route.path
+        }`
+      );
     }
   });
-  
+
   handler = serverless(app, {
     request(request, event, context) {
       // Log incoming requests for debugging

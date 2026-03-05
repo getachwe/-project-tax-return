@@ -23,18 +23,46 @@ router.post("/signup", async (req, res) => {
 
 router.post("/signin", async (req, res) => {
   try {
+    console.log("=== Sign In Request ===");
+    console.log("Request body:", JSON.stringify(req.body, null, 2));
+    console.log("Request headers:", req.headers);
+    
     const supabase = await getSupabaseClient();
     const { email, password } = req.body || {};
-    if (!email || !password)
+    
+    console.log("Email:", email ? `"${email}"` : "MISSING");
+    console.log("Password:", password ? "***PROVIDED***" : "MISSING");
+    
+    if (!email || !password) {
+      console.log("❌ Validation failed: missing email or password");
       return res.status(400).json({ error: "email and password are required" });
+    }
+    
+    console.log("✅ Attempting Supabase sign in...");
     const { data: signInData, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
-    if (error) return res.status(400).json({ error: error.message });
+    
+    if (error) {
+      console.error("❌ Supabase sign in error:", error);
+      console.error("Error message:", error.message);
+      console.error("Error status:", error.status);
+      return res.status(400).json({ 
+        error: error.message,
+        details: error.status || "unknown"
+      });
+    }
+    
+    console.log("✅ Sign in successful!");
     res.json(signInData);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("❌ Sign in route error:", err);
+    console.error("Error stack:", err.stack);
+    res.status(500).json({ 
+      error: err.message,
+      stack: process.env.NODE_ENV === "development" ? err.stack : undefined
+    });
   }
 });
 

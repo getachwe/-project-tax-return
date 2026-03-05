@@ -23,18 +23,39 @@ router.post("/signup", async (req, res) => {
 
 router.post("/signin", async (req, res) => {
   try {
+    console.log("=== Sign In Request ===");
+    console.log("Request body:", req.body);
+    console.log("Request headers:", req.headers);
+    
     const supabase = await getSupabaseClient();
     const { email, password } = req.body || {};
-    if (!email || !password)
+    
+    console.log("Email:", email ? "provided" : "missing");
+    console.log("Password:", password ? "provided" : "missing");
+    
+    if (!email || !password) {
+      console.log("Validation failed: missing email or password");
       return res.status(400).json({ error: "email and password are required" });
+    }
+    
+    console.log("Attempting Supabase sign in...");
     const { data: signInData, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
-    if (error) return res.status(400).json({ error: error.message });
+    
+    if (error) {
+      console.error("Supabase sign in error:", error);
+      console.error("Error message:", error.message);
+      return res.status(400).json({ error: error.message });
+    }
+    
+    console.log("Sign in successful");
     res.json(signInData);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("Sign in route error:", err);
+    console.error("Error stack:", err.stack);
+    res.status(500).json({ error: err.message, stack: process.env.NODE_ENV === "development" ? err.stack : undefined });
   }
 });
 
@@ -106,8 +127,13 @@ router.get("/google", async (req, res) => {
 
     console.log("=== Google OAuth Configuration ===");
     console.log("redirectTo:", redirectTo);
-    console.log("FRONTEND_URL env:", process.env.FRONTEND_URL || "(not set - using localhost:5173)");
-    console.log("IMPORTANT: Make sure this URL is configured in Supabase Dashboard:");
+    console.log(
+      "FRONTEND_URL env:",
+      process.env.FRONTEND_URL || "(not set - using localhost:5173)"
+    );
+    console.log(
+      "IMPORTANT: Make sure this URL is configured in Supabase Dashboard:"
+    );
     console.log("  → Authentication → URL Configuration → Redirect URLs");
     console.log("  → Add:", redirectTo);
     console.log("===================================");

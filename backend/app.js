@@ -3,9 +3,37 @@ const express = require("express");
 const cors = require("cors");
 
 function createApp() {
-  const app = express(); // Middlewares
+  const app = express();
 
-  app.use(cors());
+  // CORS – לאפשר קריאה מה-frontend בוורסל ומהמכונה המקומית
+  const allowedOrigins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "https://project-tax-return.vercel.app",
+  ];
+
+  app.use(
+    cors({
+      origin: (origin, callback) => {
+        if (!origin) return callback(null, true); // קריאות צד שרת / health
+        if (allowedOrigins.includes(origin)) return callback(null, true);
+        return callback(null, false);
+      },
+      credentials: true,
+    })
+  );
+  app.options("*", cors());
+
+  // Logging middleware
+  app.use((req, res, next) => {
+    console.log(`\n[${new Date().toISOString()}] ${req.method} ${req.url}`);
+    if (req.method === "POST" || req.method === "PUT" || req.method === "PATCH") {
+      console.log("Content-Type:", req.headers["content-type"]);
+      console.log("Body:", JSON.stringify(req.body, null, 2));
+    }
+    next();
+  });
+  
   app.use(express.json()); // Health check
 
   app.get("/health", (req, res) => {

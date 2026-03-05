@@ -14,6 +14,15 @@ import {
   Calculator as CalcIcon,
 } from "lucide-react";
 
+// בסיס ה-API - אותו לוגיקה כמו ב-utils/api.ts
+const isLocalHost =
+  typeof window !== "undefined" &&
+  (window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1");
+const API_BASE =
+  (import.meta as any).env?.VITE_API_URL ||
+  (isLocalHost ? "http://localhost:4000" : "");
+
 export const ResultsDisplay: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -35,6 +44,7 @@ export const ResultsDisplay: React.FC = () => {
     null | "success" | "error" | "loading"
   >(null);
   const [emailError, setEmailError] = useState("");
+  const [reportId, setReportId] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   // Track background auto-save in a ref (no re-render needed)
@@ -118,7 +128,7 @@ export const ResultsDisplay: React.FC = () => {
     );
     setLoading(true);
     setError(null);
-    
+
     // Import API functions dynamically to avoid circular dependencies
     import("../utils/api").then(({ apiCalculateTax, apiGeneratePdf }) => {
       apiCalculateTax(currentTaxData)
@@ -139,10 +149,15 @@ export const ResultsDisplay: React.FC = () => {
 
               // Generate PDF and save to storage
               try {
-                const { reportId } = await apiGeneratePdf(token, { ...currentTaxData, ...data }, true);
+                const { reportId } = await apiGeneratePdf(
+                  token,
+                  { ...currentTaxData, ...data },
+                  true
+                );
                 console.log("Report saved successfully!");
                 if (reportId) {
                   console.log("Report ID:", reportId);
+                  setReportId(reportId);
                 }
                 saveStatusRef.current = "saved";
               } catch (error) {
@@ -554,6 +569,7 @@ export const ResultsDisplay: React.FC = () => {
                           taxData: { ...currentTaxData, ...result },
                           email,
                           calculationResult: result,
+                          reportId: reportId || undefined,
                         }),
                       }
                     );

@@ -52,3 +52,5 @@
 2. ✅ בדוק שה-Google OAuth Provider מוגדר נכון
 3. ✅ בדוק את ה-logs ב-Supabase Dashboard → Logs → Auth
 
+
+

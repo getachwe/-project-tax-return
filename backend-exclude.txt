@@ -1,0 +1,14 @@
+node_modules
+temp
+uploads
+pdfs
+*.test.js
+test-*.js
+*.md
+.env
+.env.local
+.env.*.local
+
+
+
+

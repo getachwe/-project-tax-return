@@ -30,7 +30,7 @@ router.post("/", upload.single("file"), async (req, res) => {
       missingFields = getMissingFieldsByName(codeMap);
     }
     if (missingFields.length > 0)
-      return res.json({ success: true, data: codeMap, missingFields });
+      return res.json({ success: true, data: codeMap, missingFields }); // data = JSON מלא להצגה בטופס
     const taxResult = calculateTax(codeMap);
     res.json({ success: true, data: taxResult });
   } catch (err) {

@@ -236,4 +236,3 @@ export async function apiGeneratePdf(
   const reportId = res.headers.get("X-Report-ID") || undefined;
   return { blob, reportId };
 }
-

@@ -118,14 +118,24 @@ router.post("/send-tax-return-email", async (req, res) => {
       });
     }
 
-    await transporter.sendMail({
-      from: process.env.SMTP_FROM || "tax-return@example.com",
-      to: `${email}, ${process.env.SMTP_USER}`, // שליחה גם לכתובת שהזנת וגם לכתובת שלך
-      subject: "דוח החזר מס שנתי",
-      text: "מצורף דוח החזר מס שנתי. נא לעיין במסמך.",
-      attachments: [{ filename: pdfFileName, path: tempPath }],
+    // שליחת המייל ברקע – נענה ללקוח מיד כדי לחסוך המתנה
+    setImmediate(async () => {
+      try {
+        await transporter.sendMail({
+          from: process.env.SMTP_FROM || "tax-return@example.com",
+          to: `${email}, ${process.env.SMTP_USER}`, // שליחה גם לכתובת שהזנת וגם לכתובת שלך
+          subject: "דוח החזר מס שנתי",
+          text: "מצורף דוח החזר מס שנתי. נא לעיין במסמך.",
+          attachments: [{ filename: pdfFileName, path: tempPath }],
+        });
+      } catch (e) {
+        console.error("Async email send failed:", e.message);
+      } finally {
+        fs.unlink(tempPath, () => {});
+      }
     });
-    fs.unlink(tempPath, () => {});
+
+    // מחזירים הצלחה מיידית לממשק – המייל יישלח ברקע
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false, error: "שגיאה בשליחת המייל" });

@@ -6,6 +6,23 @@ function createApp() {
   const app = express(); // Middlewares
 
   app.use(cors());
+  
+  // Add logging middleware before JSON parser
+  app.use((req, res, next) => {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+    console.log("Headers:", req.headers);
+    if (req.method === "POST" || req.method === "PUT" || req.method === "PATCH") {
+      let data = "";
+      req.on("data", (chunk) => {
+        data += chunk.toString();
+      });
+      req.on("end", () => {
+        console.log("Raw body:", data);
+      });
+    }
+    next();
+  });
+  
   app.use(express.json()); // Health check
 
   // Health check
