@@ -4,7 +4,7 @@ const path = require("path");
 const fs = require("fs");
 const nodemailer = require("nodemailer");
 const { calculateTax } = require("../taxCalculator");
-const { generateTaxPDFHtml } = require("../pdfGeneratorHtml");
+const { generateTaxPDF } = require("../utils/pdfHelper");
 const { getSupabaseServiceClient } = require("../supabaseClient");
 const { getBearerToken } = require("../utils/authHelpers");
 
@@ -95,7 +95,7 @@ router.post("/send-tax-return-email", async (req, res) => {
         "pdfs",
         `tax-return-email-${Date.now()}.pdf`
       );
-      await generateTaxPDFHtml(taxResult, tempPath);
+      await generateTaxPDF({ ...taxResult, ...taxData }, tempPath);
     }
 
     let transporter;

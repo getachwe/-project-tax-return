@@ -5,7 +5,8 @@
   "type": "commonjs",
   "scripts": {
     "start": "node server.js",
-    "test-email": "node test-email.js"
+    "test-email": "node test-email.js",
+    "render-build": "PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=1 npm install"
   },
   "dependencies": {
     "@sendgrid/mail": "^8.1.5",

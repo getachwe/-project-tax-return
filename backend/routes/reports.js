@@ -8,7 +8,7 @@ const {
 } = require("../supabaseClient");
 const { getBearerToken } = require("../utils/authHelpers");
 const { calculateTax } = require("../taxCalculator");
-const { generateTaxPDFHtml } = require("../pdfGeneratorHtml");
+const { generateTaxPDF } = require("../utils/pdfHelper");
 
 async function getUserFromRequest(req) {
   const supabase = await getSupabaseClient();
@@ -85,7 +85,7 @@ router.post("/reports", async (req, res) => {
       "pdfs",
       `report-${Date.now()}.pdf`
     );
-    await generateTaxPDFHtml({ ...calculationResult, ...taxData }, tempPath);
+    await generateTaxPDF({ ...calculationResult, ...taxData }, tempPath);
 
     const fullName =
       [taxData.firstName, taxData.lastName].filter(Boolean).join(" ") ||

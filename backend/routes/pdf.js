@@ -3,7 +3,7 @@ const router = express.Router();
 const path = require("path");
 const fs = require("fs");
 const { calculateTax } = require("../taxCalculator");
-const { generateTaxPDFHtml } = require("../pdfGeneratorHtml");
+const { generateTaxPDF } = require("../utils/pdfHelper");
 const { generateTaxPDFMake } = require("../pdfGeneratorMake");
 const { getSupabaseServiceClient } = require("../supabaseClient");
 const { getBearerToken } = require("../utils/authHelpers");
@@ -30,7 +30,7 @@ router.post("/generate-pdf", async (req, res) => {
       "pdfs",
       `tax-return-${Date.now()}.pdf`
     );
-    await generateTaxPDFHtml({ ...taxResult, ...taxData }, tempPath);
+    await generateTaxPDF({ ...taxResult, ...taxData }, tempPath);
 
     const fullName =
       [taxData.firstName, taxData.lastName].filter(Boolean).join(" ") ||
