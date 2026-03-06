@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const path = require("path");
 const fs = require("fs");
+const { getPdfPath } = require("../utils/paths");
 const nodemailer = require("nodemailer");
 const { calculateTax } = require("../taxCalculator");
 const { generateTaxPDF } = require("../utils/pdfHelper");
@@ -61,12 +62,7 @@ router.post("/send-tax-return-email", async (req, res) => {
                   .download(report.storage_path);
 
               if (!downloadError && pdfData) {
-                tempPath = path.join(
-                  __dirname,
-                  "..",
-                  "pdfs",
-                  `existing-${Date.now()}.pdf`
-                );
+                tempPath = getPdfPath(`existing-${Date.now()}.pdf`);
                 fs.writeFileSync(
                   tempPath,
                   Buffer.from(await pdfData.arrayBuffer())
@@ -89,12 +85,7 @@ router.post("/send-tax-return-email", async (req, res) => {
     if (!tempPath) {
       console.log("Generating new PDF");
       const taxResult = calculateTax(taxData);
-      tempPath = path.join(
-        __dirname,
-        "..",
-        "pdfs",
-        `tax-return-email-${Date.now()}.pdf`
-      );
+      tempPath = getPdfPath(`tax-return-email-${Date.now()}.pdf`);
       await generateTaxPDF({ ...taxResult, ...taxData }, tempPath);
     }
 

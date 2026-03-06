@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const path = require("path");
 const fs = require("fs");
+const { getPdfPath } = require("../utils/paths");
 const {
   getSupabaseClient,
   getSupabaseServiceClient,
@@ -79,12 +80,7 @@ router.post("/reports", async (req, res) => {
     const calculationResult = inputCalc || calculateTax(taxData);
 
     // Generate temp PDF
-    const tempPath = path.join(
-      __dirname,
-      "..",
-      "pdfs",
-      `report-${Date.now()}.pdf`
-    );
+    const tempPath = getPdfPath(`report-${Date.now()}.pdf`);
     await generateTaxPDF({ ...calculationResult, ...taxData }, tempPath);
 
     const fullName =

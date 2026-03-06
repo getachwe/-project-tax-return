@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const path = require("path");
 const fs = require("fs");
+const { getPdfPath } = require("../utils/paths");
 const { calculateTax } = require("../taxCalculator");
 const { generateTaxPDF } = require("../utils/pdfHelper");
 const { generateTaxPDFMake } = require("../pdfGeneratorMake");
@@ -9,10 +10,9 @@ const { getSupabaseServiceClient } = require("../supabaseClient");
 const { getBearerToken } = require("../utils/authHelpers");
 
 router.get("/download/tax-return.pdf", (req, res) => {
-  const filePath = path.join(__dirname, "..", "pdfs", "tax-return.pdf");
-  res.sendFile(filePath, (err) => {
-    if (err) res.status(404).send("הקובץ לא נמצא");
-  });
+  const filePath = getPdfPath("tax-return.pdf");
+  if (!fs.existsSync(filePath)) return res.status(404).send("הקובץ לא נמצא");
+  res.sendFile(filePath);
 });
 
 router.post("/generate-pdf", async (req, res) => {
@@ -24,12 +24,7 @@ router.post("/generate-pdf", async (req, res) => {
     const taxData = req.body;
     const taxResult = calculateTax(taxData);
     console.log("Tax calculation result:", taxResult);
-    const tempPath = path.join(
-      __dirname,
-      "..",
-      "pdfs",
-      `tax-return-${Date.now()}.pdf`
-    );
+    const tempPath = getPdfPath(`tax-return-${Date.now()}.pdf`);
     await generateTaxPDF({ ...taxResult, ...taxData }, tempPath);
 
     const fullName =
@@ -125,12 +120,7 @@ router.post("/generate-tax-return-pdfmake", async (req, res) => {
   try {
     const taxData = req.body;
     const taxResult = calculateTax(taxData);
-    const tempPath = path.join(
-      __dirname,
-      "..",
-      "pdfs",
-      `tax-return-make-${Date.now()}.pdf`
-    );
+    const tempPath = getPdfPath(`tax-return-make-${Date.now()}.pdf`);
     await generateTaxPDFMake({ ...taxResult, ...taxData }, tempPath);
     const fullName =
       [taxData.firstName, taxData.lastName].filter(Boolean).join(" ") ||
