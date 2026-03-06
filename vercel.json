@@ -2,5 +2,5 @@
   "framework": null,
   "buildCommand": "npm run build:frontend",
   "outputDirectory": "project/dist",
-  "installCommand": "npm install"
+  "installCommand": "PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=1 npm install"
 }
