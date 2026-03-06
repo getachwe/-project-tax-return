@@ -1,3 +1,6 @@
+# Ignore api/ – משתמשים ב-server.js (Express) בלבד, לא ב-api כפול
+api/
+
 # Ignore development files
 node_modules/
 *.log
