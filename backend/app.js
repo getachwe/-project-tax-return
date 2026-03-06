@@ -34,8 +34,9 @@ function createApp() {
 
   app.use(express.json());
 
-  // Health – Render בודק גם / וגם /health
-  app.get(["/", "/health"], (req, res) => {
+  // Health – על Vercel רק /health (שורש משרת SPA)
+  const healthPaths = process.env.VERCEL ? ["/health"] : ["/", "/health"];
+  app.get(healthPaths, (req, res) => {
     res.json({ status: "ok" });
   });
 
