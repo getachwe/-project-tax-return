@@ -34,6 +34,14 @@ function createApp() {
 
   app.use(express.json());
 
+  // מונע cache ל-API – חשוב ל-OAuth ודינמי
+  app.use("/api", (req, res, next) => {
+    res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.set("Pragma", "no-cache");
+    res.set("Expires", "0");
+    next();
+  });
+
   // Health – על Vercel רק /health (שורש משרת SPA)
   const healthPaths = process.env.VERCEL ? ["/health"] : ["/", "/health"];
   app.get(healthPaths, (req, res) => {
