@@ -1,5 +1,6 @@
 {
   "framework": null,
-  "buildCommand": "cd project && npm install && npm run build",
+  "buildCommand": "npm run build:frontend",
+  "outputDirectory": "project/dist",
   "installCommand": "npm install"
 }
