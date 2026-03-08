@@ -10,11 +10,13 @@ const { createApp } = require("./backend/app");
 
 const app = createApp();
 
-// SPA – קבצים סטטיים + fallback
+// SPA – קבצים סטטיים (public מועתק מ-build) + fallback
+const staticDir = path.join(__dirname, "public");
 const distDir = path.join(__dirname, "project", "dist");
-app.use(express.static(distDir));
+const dir = require("fs").existsSync(staticDir) ? staticDir : distDir;
+app.use(express.static(dir));
 app.get("*", (req, res) => {
-  res.sendFile(path.join(distDir, "index.html"));
+  res.sendFile(path.join(dir, "index.html"));
 });
 
 module.exports = app;

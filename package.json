@@ -7,7 +7,8 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "build:frontend": "npm install --prefix project && npm run build --prefix project"
+    "build:frontend": "npm install --prefix project && npm run build --prefix project",
+    "build": "npm run build:frontend && node scripts/copy-dist-to-public.js"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.4",
