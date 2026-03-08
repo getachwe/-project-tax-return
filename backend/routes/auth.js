@@ -9,10 +9,16 @@ router.post("/signup", async (req, res) => {
     const { email, password, data } = req.body || {};
     if (!email || !password)
       return res.status(400).json({ error: "email and password are required" });
+    if (password.length < 6)
+      return res.status(400).json({ error: "הסיסמה חייבת להכיל לפחות 6 תווים" });
+    const frontendUrl = process.env.FRONTEND_URL || "https://project-tax-return.vercel.app";
     const { data: signUpData, error } = await supabase.auth.signUp({
-      email,
+      email: email.trim(),
       password,
-      options: { data: data || {} },
+      options: {
+        data: data || {},
+        emailRedirectTo: `${frontendUrl}/auth/callback`,
+      },
     });
     if (error) return res.status(400).json({ error: error.message });
     res.json(signUpData);

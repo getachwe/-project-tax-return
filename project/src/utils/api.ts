@@ -11,13 +11,30 @@ function getAuthHeader(token?: string) {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+const ERROR_MESSAGES: Record<string, string> = {
+  "User already registered": "האימייל כבר רשום. נסה להתחבר במקום",
+  "Invalid login credentials": "אימייל או סיסמה שגויים",
+  "Email not confirmed": "אנא אשר את האימייל (בדוק תיבת הדואר)",
+};
+
+async function parseApiError(res: Response): Promise<string> {
+  const text = await res.text();
+  try {
+    const j = JSON.parse(text);
+    const err = j?.error || text;
+    return ERROR_MESSAGES[err] || err;
+  } catch {
+    return text;
+  }
+}
+
 export async function apiSignIn(email: string, password: string): Promise<AuthResponse> {
   const res = await fetch(`${BASE_URL}/api/auth/signin`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password }),
   });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) throw new Error(await parseApiError(res));
   return res.json();
 }
 
@@ -27,7 +44,7 @@ export async function apiSignUp(email: string, password: string): Promise<any> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password }),
   });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) throw new Error(await parseApiError(res));
   return res.json();
 }
 
@@ -37,7 +54,7 @@ export async function apiResendConfirmation(email: string): Promise<any> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email }),
   });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) throw new Error(await parseApiError(res));
   return res.json();
 }
 
@@ -47,7 +64,7 @@ export async function apiResetPassword(email: string): Promise<any> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email }),
   });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) throw new Error(await parseApiError(res));
   return res.json();
 }
 
