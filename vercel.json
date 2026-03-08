@@ -10,7 +10,7 @@
   "routes": [
     { "handle": "filesystem" },
     { "src": "/api/(.*)", "dest": "/server.js" },
-    { "src": "/(.*)", "dest": "/server.js" }
+    { "src": "/((?!api/|assets/|vite\\.svg|favicon\\.ico).*)", "dest": "/server.js" }
   ],
   "headers": [
     {
