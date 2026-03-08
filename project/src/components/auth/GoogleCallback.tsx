@@ -130,11 +130,7 @@ export const GoogleCallback: React.FC = () => {
 6. הכנס את ה-URL הבא (העתק בדיוק!):
    ${expectedRedirectUrl}
 
-⚠️ חשוב מאוד:
-   • ללא סלאש בסוף
-   • עם http:// (לא https://)
-   • עם פורט 5173
-   • בדיוק כפי שמוצג למעלה
+⚠️ חשוב מאוד: הכנס את ה-URL בדיוק כפי שמוצג, ללא סלאש בסוף.
 
 7. לחץ "Save"
 
@@ -190,10 +186,17 @@ export const GoogleCallback: React.FC = () => {
 
         // Redirect to main app immediately
         navigate("/", { replace: true });
-      } catch (error) {
-        console.error("Google callback error:", error);
+      } catch (err) {
+        console.error("Google callback error:", err);
         setStatus("error");
-        setMessage(error instanceof Error ? error.message : "שגיאה לא ידועה");
+        const msg = err instanceof Error ? err.message : "שגיאה לא ידועה";
+        const isNetwork =
+          msg.includes("fetch") ||
+          msg.includes("Failed to fetch") ||
+          msg.includes("NetworkError");
+        setMessage(
+          isNetwork ? "לא ניתן להתחבר לשרת. בדוק את החיבור לאינטרנט." : msg
+        );
       }
     };
 
@@ -201,7 +204,10 @@ export const GoogleCallback: React.FC = () => {
   }, [navigate]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div
+      className="min-h-screen flex items-center justify-center bg-gray-50"
+      style={{ minHeight: "100vh", backgroundColor: "#f9fafb" }}
+    >
       <div className="max-w-md w-full space-y-8 p-8">
         <div className="text-center">
           {status === "loading" && (
@@ -240,7 +246,7 @@ export const GoogleCallback: React.FC = () => {
               </h2>
               <p className="text-gray-600 mb-4">{message}</p>
               <button
-                onClick={() => navigate("/auth")}
+                onClick={() => navigate("/", { replace: true })}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors"
               >
                 חזור לדף ההתחברות

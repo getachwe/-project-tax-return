@@ -148,7 +148,7 @@ router.get("/google", async (req, res) => {
       provider: "google",
       options: {
         redirectTo: `${
-          process.env.FRONTEND_URL || "http://localhost:5173"
+          process.env.FRONTEND_URL || "https://project-tax-return.vercel.app"
         }/auth/callback`,
       },
     });

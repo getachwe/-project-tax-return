@@ -8,6 +8,7 @@ import { Footer } from "./components/Footer";
 import { TaxCalculatorProvider } from "./context/TaxCalculatorContext";
 import { AuthPanel } from "./components/auth/AuthPanel";
 import { GoogleCallback } from "./components/auth/GoogleCallback";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 // Session timeout duration in milliseconds (30 minutes)
 const SESSION_TIMEOUT = 30 * 60 * 1000;
@@ -168,6 +169,7 @@ function App() {
     };
   }, [resetActivityTimer, handleUserActivity]);
   return (
+    <ErrorBoundary>
     <div className="min-h-screen flex flex-col font-heebo">
       <TaxCalculatorProvider>
         <Header />
@@ -248,6 +250,7 @@ function App() {
         <Footer />
       </TaxCalculatorProvider>
     </div>
+    </ErrorBoundary>
   );
 }
 
