@@ -1,6 +1,5 @@
-# api/[[...path]].js – catch-all ל-Express (פונקציה יחידה)
-# api-legacy – הקבצים הישנים, לא נשלחים
-
+# api/ – חוזרים ל-server.js בלבד (Express מטפל בהכל)
+api/
 api-legacy/
 
 # Ignore development files
