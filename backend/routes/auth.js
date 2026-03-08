@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { getSupabaseClient } = require("../supabaseClient");
+const { getSupabaseClient, getSupabaseServiceClient } = require("../supabaseClient");
 const { getBearerToken } = require("../utils/authHelpers");
 
 router.post("/signup", async (req, res) => {
@@ -101,12 +101,38 @@ router.post("/resend-confirmation", async (req, res) => {
   }
 });
 
+router.post("/update-password", async (req, res) => {
+  try {
+    const supabase = await getSupabaseClient();
+    const token = getBearerToken(req);
+    const { newPassword, refreshToken } = req.body || {};
+    if (!token || !newPassword)
+      return res.status(400).json({ error: "token and newPassword are required" });
+    if (newPassword.length < 6)
+      return res.status(400).json({ error: "הסיסמה חייבת להכיל לפחות 6 תווים" });
+    const { data: user, error: userErr } = await supabase.auth.getUser(token);
+    if (userErr || !user?.user)
+      return res.status(401).json({ error: "פג תוקף הקישור. נסה לבקש איפוס סיסמא מחדש" });
+    const supabaseAdmin = await getSupabaseServiceClient();
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(user.user.id, {
+      password: newPassword,
+    });
+    if (error) return res.status(400).json({ error: error.message });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.post("/reset-password", async (req, res) => {
   try {
     const supabase = await getSupabaseClient();
     const { email } = req.body || {};
     if (!email) return res.status(400).json({ error: "email is required" });
-    const { data, error } = await supabase.auth.resetPasswordForEmail(email);
+    const frontendUrl = process.env.FRONTEND_URL || "https://project-tax-return.vercel.app";
+    const { data, error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: `${frontendUrl}/`,
+    });
     if (error) return res.status(400).json({ error: error.message });
     res.json({ ok: true, data });
   } catch (err) {

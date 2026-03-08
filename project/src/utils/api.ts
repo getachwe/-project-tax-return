@@ -69,6 +69,18 @@ export async function apiResetPassword(email: string): Promise<any> {
   return res.json();
 }
 
+export async function apiUpdatePassword(token: string, newPassword: string): Promise<void> {
+  const res = await fetch(`${BASE_URL}/api/auth/update-password`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ newPassword }),
+  });
+  if (!res.ok) throw new Error(await parseApiError(res));
+}
+
 export async function apiGetProfile(token: string): Promise<any> {
   const res = await fetch(`${BASE_URL}/api/profile`, {
     headers: { ...getAuthHeader(token) },

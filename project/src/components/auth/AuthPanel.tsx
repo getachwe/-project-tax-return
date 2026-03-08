@@ -9,11 +9,15 @@ import {
 import { LoginForm } from "./LoginForm";
 import { SignupForm } from "./SignupForm";
 import { PasswordReset } from "./PasswordReset";
+import { SetNewPassword } from "./SetNewPassword";
 
 export const AuthPanel: React.FC = () => {
-  const hasResetToken = !!new URLSearchParams(
-    location.hash.replace(/^#/, "")
-  ).get("access_token");
+  const hashParams = new URLSearchParams(
+    location.hash.replace(/^#/, "").split("?")[0] || ""
+  );
+  const accessToken = hashParams.get("access_token");
+  const typeRecovery = hashParams.get("type") === "recovery";
+  const isRecoveryFlow = !!accessToken && typeRecovery;
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -22,6 +26,7 @@ export const AuthPanel: React.FC = () => {
   const [message, setMessage] = useState<string | null>(null);
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [loading, setLoading] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
 
   // Load saved email on component mount
   useEffect(() => {
@@ -133,11 +138,38 @@ export const AuthPanel: React.FC = () => {
     }
   };
 
-  // מסך איפוס נקי כאשר מגיעים מהאימייל
-  if (hasResetToken) {
+  // מגיעים מקישור איפוס סיסמה במייל – טופס בחירת סיסמה חדשה
+  if (isRecoveryFlow && accessToken) {
+    const handleSetPasswordSuccess = () => {
+      history.replaceState(null, "", location.pathname + location.search + "#/");
+      localStorage.removeItem("authToken");
+      setToken(null);
+      setShowForgotPassword(false);
+      setMessage("הסיסמה עודכנה. התחבר עם הסיסמה החדשה");
+    };
     return (
       <div className="rtl">
-        <PasswordReset onSuccess={onSignOut} />
+        <SetNewPassword accessToken={accessToken} onSuccess={handleSetPasswordSuccess} />
+      </div>
+    );
+  }
+
+  // לחיצה על "שכחת סיסמה" – טופס בקשת קישור איפוס
+  if (showForgotPassword) {
+    return (
+      <div className="rtl">
+        <PasswordReset
+          onSuccess={() => {
+            setShowForgotPassword(false);
+            setMessage("אימייל איפוס סיסמה נשלח! בדוק את תיבת המייל");
+          }}
+        />
+        <button
+          onClick={() => setShowForgotPassword(false)}
+          className="mt-4 w-full text-sm text-gray-600 hover:text-gray-800"
+        >
+          ← חזור להתחברות
+        </button>
       </div>
     );
   }
@@ -297,10 +329,7 @@ export const AuthPanel: React.FC = () => {
             <div className="text-center text-sm text-gray-500">
               <span>שכחת סיסמה?</span>
               <button
-                onClick={() => {
-                  // TODO: Implement forgot password
-                  setMessage("פונקציונליות שכחת סיסמה תתווסף בקרוב");
-                }}
+                onClick={() => setShowForgotPassword(true)}
                 className="text-blue-600 hover:text-blue-700 hover:underline transition-colors mr-1"
               >
                 לחץ כאן
