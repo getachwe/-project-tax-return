@@ -1,5 +1,7 @@
-# Ignore api/ – משתמשים ב-server.js (Express) בלבד, לא ב-api כפול
-api/
+# api/[[...path]].js – catch-all ל-Express (פונקציה יחידה)
+# api-legacy – הקבצים הישנים, לא נשלחים
+
+api-legacy/
 
 # Ignore development files
 node_modules/
