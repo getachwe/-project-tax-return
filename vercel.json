@@ -1,7 +1,17 @@
 {
+  "version": 2,
   "framework": null,
   "buildCommand": "npm run build",
   "installCommand": "PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=1 npm install",
+  "builds": [
+    { "src": "package.json", "use": "@vercel/static-build", "config": { "distDir": "public" } },
+    { "src": "server.js", "use": "@vercel/node" }
+  ],
+  "routes": [
+    { "handle": "filesystem" },
+    { "src": "/api/(.*)", "dest": "/server.js" },
+    { "src": "/(.*)", "dest": "/server.js" }
+  ],
   "headers": [
     {
       "source": "/api/(.*)",
