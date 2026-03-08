@@ -15,6 +15,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   "User already registered": "האימייל כבר רשום. נסה להתחבר במקום",
   "Invalid login credentials": "אימייל או סיסמה שגויים. אם הרגע נרשמת – אשר קודם את המייל (בדוק גם בספאם)",
   "Email not confirmed": "אנא אשר את האימייל (בדוק תיבת הדואר וגם בספאם)",
+  "email rate limit exceeded": "חרגת ממגבלת השליחות. חכה כשעה או השבת 'אישור מייל' ב-Supabase להפעלה",
 };
 
 async function parseApiError(res: Response): Promise<string> {
