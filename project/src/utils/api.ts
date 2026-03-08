@@ -13,8 +13,8 @@ function getAuthHeader(token?: string) {
 
 const ERROR_MESSAGES: Record<string, string> = {
   "User already registered": "האימייל כבר רשום. נסה להתחבר במקום",
-  "Invalid login credentials": "אימייל או סיסמה שגויים",
-  "Email not confirmed": "אנא אשר את האימייל (בדוק תיבת הדואר)",
+  "Invalid login credentials": "אימייל או סיסמה שגויים. אם הרגע נרשמת – אשר קודם את המייל (בדוק גם בספאם)",
+  "Email not confirmed": "אנא אשר את האימייל (בדוק תיבת הדואר וגם בספאם)",
 };
 
 async function parseApiError(res: Response): Promise<string> {
