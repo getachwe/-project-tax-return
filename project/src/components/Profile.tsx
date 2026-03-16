@@ -88,22 +88,22 @@ export const Profile: React.FC<Props> = ({ token }) => {
   }
 
   return (
-    <div className="w-full max-w-lg bg-white border border-gray-200 rounded-xl p-6 space-y-4 rtl">
-      <h2 className="text-lg font-semibold text-gray-800">פרופיל משתמש</h2>
-      {message && <div className="text-sm text-blue-700">{message}</div>}
+    <div className="w-full max-w-lg bg-card text-card-foreground border border-border rounded-xl p-6 space-y-4 rtl">
+      <h2 className="text-lg font-semibold text-foreground">פרופיל משתמש</h2>
+      {message && <div className="text-sm text-muted-foreground">{message}</div>}
       <div className="grid grid-cols-1 gap-4">
         <label className="flex flex-col gap-1">
-          <span className="text-sm text-gray-700">שם פרטי</span>
+          <span className="text-sm text-muted-foreground">שם פרטי</span>
           <input
-            className="input"
+            className="input-field"
             value={firstName}
             onChange={(e) => setFirstName(e.target.value)}
           />
         </label>
         <label className="flex flex-col gap-1">
-          <span className="text-sm text-gray-700">שם משפחה</span>
+          <span className="text-sm text-muted-foreground">שם משפחה</span>
           <input
-            className="input"
+            className="input-field"
             value={lastName}
             onChange={(e) => setLastName(e.target.value)}
           />

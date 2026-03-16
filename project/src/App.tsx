@@ -9,6 +9,9 @@ import { TaxCalculatorProvider } from "./context/TaxCalculatorContext";
 import { AuthPanel } from "./components/auth/AuthPanel";
 import { GoogleCallback } from "./components/auth/GoogleCallback";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { DashboardLayout } from "./components/layout/DashboardLayout";
+import { Profile } from "./components/Profile";
+import { SettingsPage } from "./components/SettingsPage";
 
 // Session timeout duration in milliseconds (30 minutes)
 const SESSION_TIMEOUT = 30 * 60 * 1000;
@@ -170,86 +173,96 @@ function App() {
   }, [resetActivityTimer, handleUserActivity]);
   return (
     <ErrorBoundary>
-    <div className="min-h-screen flex flex-col font-heebo">
-      <TaxCalculatorProvider>
-        <Header />
-
-        {/* Session Timeout Warning */}
-        {showTimeoutWarning && token && (
-          <div className="bg-amber-50 border-l-4 border-amber-400 p-4 mx-4 mt-4 rounded-r-lg">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <svg
-                    className="h-5 w-5 text-amber-400"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </div>
-                <div className="mr-3">
-                  <p className="text-sm text-amber-700">
-                    <strong>הפעילות שלך עומדת להסתיים:</strong> תתנתק אוטומטית
-                    בעוד 5 דקות. לחץ "המשך עבודה" כדי להישאר מחובר.
+      <div className="min-h-screen flex flex-col font-heebo">
+        <TaxCalculatorProvider>
+          {/* Session Timeout Warning */}
+          {showTimeoutWarning && token && (
+            <div className="mx-auto mt-4 w-full max-w-5xl px-4">
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0 mt-1 text-amber-500">
+                    <svg
+                      className="h-5 w-5"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  </div>
+                  <p className="text-sm text-amber-800">
+                    <strong className="font-semibold">
+                      הפעילות שלך עומדת להסתיים:
+                    </strong>{" "}
+                    תתנתק אוטומטית בעוד 5 דקות. לחץ{" "}
+                    <span className="font-semibold">“המשך עבודה”</span> כדי
+                    להישאר מחובר.
                   </p>
                 </div>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={dismissWarning}
-                  className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                >
-                  המשך עבודה
-                </button>
-                <button
-                  onClick={clearSession}
-                  className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                >
-                  התנתק עכשיו
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={dismissWarning}
+                    className="bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors"
+                  >
+                    המשך עבודה
+                  </button>
+                  <button
+                    onClick={clearSession}
+                    className="bg-slate-500 hover:bg-slate-600 text-white px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors"
+                  >
+                    התנתק עכשיו
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        <main className="flex-grow py-8 px-4 sm:px-6 lg:px-8 bg-blue-50">
           <Routes>
             <Route path="/auth/callback" element={<GoogleCallback />} />
             {!token ? (
               <Route
                 path="/*"
                 element={
-                  <div className="flex items-center justify-center">
-                    <div className="w-11/12 max-w-sm md:w-full md:max-w-md">
-                      <AuthPanel />
-                    </div>
+                  <div className="min-h-screen bg-gradient-to-br from-slate-50 via-sky-50 to-emerald-50 flex flex-col">
+                    <Header />
+                    <main className="flex-1 flex items-center justify-center px-4 py-10">
+                      <div className="w-full max-w-md">
+                        <AuthPanel />
+                      </div>
+                    </main>
+                    <Footer />
                   </div>
                 }
               />
             ) : (
-              <>
-                <Route
-                  path="/"
-                  element={
-                    <div className="flex items-center justify-center">
-                      <Calculator />
-                    </div>
-                  }
-                />
-                <Route path="/history" element={<HistoryPage />} />
-                <Route path="/results" element={<ResultsDisplay />} />
-              </>
+              <Route
+                path="/*"
+                element={
+                  <DashboardLayout>
+                    <Routes>
+                      <Route path="/" element={<ResultsDisplay />} />
+                      <Route path="/incomes" element={<Calculator />} />
+                      <Route path="/history" element={<HistoryPage />} />
+                      <Route path="/results" element={<ResultsDisplay />} />
+                      <Route
+                        path="/profile"
+                        element={<Profile token={token} />}
+                      />
+                      <Route
+                        path="/settings"
+                        element={<SettingsPage token={token} />}
+                      />
+                    </Routes>
+                  </DashboardLayout>
+                }
+              />
             )}
           </Routes>
-        </main>
-        <Footer />
-      </TaxCalculatorProvider>
-    </div>
+        </TaxCalculatorProvider>
+      </div>
     </ErrorBoundary>
   );
 }

@@ -3,8 +3,10 @@ import { Calculator, ChevronDown, History, LogOut, User } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Dialog } from "@headlessui/react";
 import { AuthPanel } from "./auth/AuthPanel";
+import { useI18n } from "../i18n/useI18n";
 
 export const Header: React.FC = () => {
+  const { t } = useI18n();
   const [openDialog, setOpenDialog] = useState<
     null | "help" | "about" | "auth"
   >(null);
@@ -70,45 +72,53 @@ export const Header: React.FC = () => {
     }
   }, [openDialog]);
   return (
-    <header className="bg-white border-b border-gray-200">
+    <header className="bg-card/90 backdrop-blur border-b border-border">
       {loginToast && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-4 py-2 rounded-full shadow z-[60]">
           {loginToast}
         </div>
       )}
       <div className="max-w-7xl mx-auto py-3 px-4 sm:px-8 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Calculator className="h-7 w-7 text-blue-600" />
-          <h1 className="text-xl font-semibold text-gray-800 tracking-tight">
-            מחשבון החזרי מס
-          </h1>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-emerald-400 to-sky-500 flex items-center justify-center shadow-md">
+              <Calculator className="h-5 w-5 text-white" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-sm font-semibold text-foreground leading-none">
+                {t("app.title")}
+              </span>
+              <span className="text-xs text-muted-foreground leading-none mt-0.5">
+                {t("app.subtitle")}
+              </span>
+            </div>
+          </div>
         </div>
-        <nav>
-          <ul className="flex gap-5">
-            <li>
-              <button
-                type="button"
-                onClick={() => setOpenDialog("help")}
-                className="text-gray-600 hover:text-blue-600 font-normal transition-colors duration-200"
-              >
-                עזרה
-              </button>
-            </li>
-            <li>
-              <button
-                type="button"
-                onClick={() => setOpenDialog("about")}
-                className="text-gray-600 hover:text-blue-600 font-normal transition-colors duration-200"
-              >
-                אודות
-              </button>
-            </li>
-            <li>
-              <AuthStatus />
-            </li>
-            {/* הוסר קישור היסטוריה מפה; קיים בתפריט המשתמש */}
-          </ul>
+        <nav className="hidden md:flex items-center gap-6 text-sm">
+          <button
+            type="button"
+            onClick={() => (window.location.href = "/")}
+            className="px-3 py-1.5 rounded-full bg-foreground text-background font-medium shadow-sm"
+          >
+            {t("header.dashboard")}
+          </button>
+          <button
+            type="button"
+            onClick={() => setOpenDialog("help")}
+            className="text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {t("header.help")}
+          </button>
+          <button
+            type="button"
+            onClick={() => setOpenDialog("about")}
+            className="text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {t("header.about")}
+          </button>
+          <AuthStatus />
         </nav>
+        {/* Mobile: only auth button + menu icons נשארים דרך AuthStatus */}
       </div>
       {/* Dialogs */}
       <Dialog
@@ -118,11 +128,11 @@ export const Header: React.FC = () => {
       >
         <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
-          <Dialog.Panel className="w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl border border-gray-100">
-            <Dialog.Title className="text-xl font-bold mb-2 text-center text-blue-700">
+          <Dialog.Panel className="w-full max-w-md rounded-2xl bg-card p-8 shadow-2xl border border-border">
+            <Dialog.Title className="text-xl font-bold mb-2 text-center text-foreground">
               עזרה
             </Dialog.Title>
-            <div className="text-gray-700 text-center mb-4 space-y-2 rtl">
+            <div className="text-muted-foreground text-center mb-4 space-y-2 rtl">
               <p>ברוכים הבאים למחשבון החזרי מס!</p>
               <p>
                 באמצעות כלי זה תוכלו לבדוק בקלות ובמהירות האם מגיע לכם החזר מס
@@ -156,11 +166,11 @@ export const Header: React.FC = () => {
       >
         <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
-          <Dialog.Panel className="w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl border border-gray-100">
-            <Dialog.Title className="text-xl font-bold mb-2 text-center text-blue-700">
+          <Dialog.Panel className="w-full max-w-md rounded-2xl bg-card p-8 shadow-2xl border border-border">
+            <Dialog.Title className="text-xl font-bold mb-2 text-center text-foreground">
               אודות
             </Dialog.Title>
-            <div className="text-gray-700 text-center mb-4 space-y-2 rtl">
+            <div className="text-muted-foreground text-center mb-4 space-y-2 rtl">
               <p>
                 מחשבון החזרי מס פותח במטרה להנגיש לכל אזרח את האפשרות לבדוק
                 זכאות להחזר מס בצורה פשוטה, מהירה וללא עלות.
@@ -193,8 +203,8 @@ export const Header: React.FC = () => {
       >
         <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
-          <Dialog.Panel className="w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl border border-gray-100">
-            <Dialog.Title className="text-xl font-bold mb-2 text-center text-blue-700">
+          <Dialog.Panel className="w-full max-w-md rounded-2xl bg-card p-8 shadow-2xl border border-border">
+            <Dialog.Title className="text-xl font-bold mb-2 text-center text-foreground">
               {(() => {
                 try {
                   const p = new URLSearchParams(
@@ -283,7 +293,7 @@ const AuthStatus: React.FC = () => {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-100 text-gray-800 hover:bg-gray-200 transition"
+        className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted text-foreground hover:bg-muted/80 transition"
         title={email}
       >
         <User className="h-5 w-5 text-blue-600" />
@@ -291,18 +301,18 @@ const AuthStatus: React.FC = () => {
         <span className="text-sm max-w-[12rem] truncate hidden sm:inline">
           {email}
         </span>
-        <ChevronDown className="w-4 h-4 text-gray-500" />
+        <ChevronDown className="w-4 h-4 text-muted-foreground" />
       </button>
       {open && (
-        <div className="absolute left-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden z-50">
-          <div className="px-4 py-2 border-b border-gray-100">
-            <p className="text-xs text-gray-500">מחובר כ:</p>
-            <p className="text-sm font-medium text-gray-800 truncate">
+        <div className="absolute left-0 mt-2 w-52 bg-card border border-border rounded-lg shadow-lg overflow-hidden z-50">
+          <div className="px-4 py-2 border-b border-border">
+            <p className="text-xs text-muted-foreground">מחובר כ:</p>
+            <p className="text-sm font-medium text-foreground truncate">
               {email}
             </p>
           </div>
           <button
-            className="w-full text-right px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3"
+            className="w-full text-right px-4 py-3 text-sm text-foreground hover:bg-muted flex items-center gap-3"
             onClick={() => {
               setOpen(false);
               navigate("/history");
@@ -312,7 +322,7 @@ const AuthStatus: React.FC = () => {
             היסטוריה
           </button>
           <button
-            className="w-full text-right px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3"
+            className="w-full text-right px-4 py-3 text-sm text-foreground hover:bg-muted flex items-center gap-3"
             onClick={() => {
               localStorage.removeItem("authToken");
               setOpen(false);

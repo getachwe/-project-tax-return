@@ -4,10 +4,28 @@
 
 :root {
   font-family: "Heebo", sans-serif;
+  /* Theme tokens */
+  --background: 0 0% 98%;
+  --foreground: 222 47% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --muted: 210 40% 96%;
+  --muted-foreground: 215 16% 47%;
+  --border: 214 32% 91%;
+}
+
+.dark {
+  --background: 222 47% 6%;
+  --foreground: 210 40% 98%;
+  --card: 222 47% 10%;
+  --card-foreground: 210 40% 98%;
+  --muted: 217 33% 17%;
+  --muted-foreground: 215 20% 70%;
+  --border: 217 33% 22%;
 }
 
 body {
-  @apply bg-gray-50 text-gray-900;
+  @apply bg-background text-foreground;
 }
 
 @layer components {
@@ -16,23 +34,40 @@ body {
   }
 
   .btn-secondary {
-    @apply bg-white hover:bg-gray-50 text-gray-800 font-medium py-3 px-6 border border-gray-300 rounded-lg transition-all duration-300 shadow-sm hover:shadow-md;
+    @apply bg-card hover:bg-muted text-foreground font-medium py-3 px-6 border border-border rounded-lg transition-all duration-300 shadow-sm hover:shadow-md;
   }
 
   .card {
-    @apply bg-white rounded-xl shadow-sm p-6 md:p-8 border border-gray-200;
+    @apply bg-card text-card-foreground rounded-xl shadow-sm p-6 md:p-8 border border-border;
   }
 
   .card-enhanced {
-    @apply bg-white rounded-2xl shadow-xl p-8 md:p-10 border border-gray-100;
+    @apply bg-card text-card-foreground rounded-2xl shadow-xl p-8 md:p-10 border border-border;
   }
 
   .input-field {
-    @apply block w-full rounded-lg border-gray-300 shadow-sm p-3 border focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200;
+    @apply block w-full rounded-lg border-border bg-background text-foreground shadow-sm p-3 border focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 placeholder:text-muted-foreground;
   }
 
   .input-field-enhanced {
     @apply block w-full rounded-lg border-gray-300 shadow-sm p-3 border focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 hover:border-blue-300;
+  }
+
+  /* Dark-mode overrides for טקסטים אפורים שיהיו ברורים */
+  .dark .text-gray-700 {
+    @apply text-gray-100;
+  }
+
+  .dark .text-gray-600 {
+    @apply text-gray-200;
+  }
+
+  .dark .text-slate-700 {
+    @apply text-slate-100;
+  }
+
+  .dark .text-slate-600 {
+    @apply text-slate-200;
   }
 
   .form-label {

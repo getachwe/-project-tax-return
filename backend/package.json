@@ -6,6 +6,9 @@
   "scripts": {
     "start": "node server.js",
     "test-email": "node test-email.js",
+    "test-explanation": "node tests/test-explanation-engine.js",
+    "test-simulation": "node tests/test-simulation-engine.js",
+    "test-audit": "node tests/test-audit-trail.js",
     "render-build": "PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=1 npm install"
   },
   "dependencies": {

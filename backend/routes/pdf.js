@@ -18,11 +18,18 @@ router.get("/download/tax-return.pdf", (req, res) => {
 router.post("/generate-pdf", async (req, res) => {
   try {
     console.log("=== PDF Generation Request ===");
-    console.log("Body:", JSON.stringify(req.body, null, 2));
-    console.log("Headers:", req.headers);
 
-    const taxData = req.body;
-    const taxResult = calculateTax(taxData);
+    const taxData = req.body || {};
+    if ((taxData.income == null || taxData.income === "") || (taxData.taxPaid == null || taxData.taxPaid === "")) {
+      return res.status(400).json({ error: "חסרים נתונים לחישוב (הכנסה, מס ששולם)" });
+    }
+    let taxResult;
+    try {
+      taxResult = calculateTax(taxData);
+    } catch (calcErr) {
+      console.error("PDF: calculateTax failed:", calcErr.message);
+      return res.status(400).json({ error: calcErr.message || "נתונים לא תקינים לחישוב" });
+    }
     console.log("Tax calculation result:", taxResult);
     const tempPath = getPdfPath(`tax-return-${Date.now()}.pdf`);
     await generateTaxPDF({ ...taxResult, ...taxData }, tempPath);
@@ -112,6 +119,10 @@ router.post("/generate-pdf", async (req, res) => {
     stream.pipe(res);
     stream.on("close", () => fs.unlink(tempPath, () => {}));
   } catch (err) {
+    console.error("PDF generation error:", err.message);
+    if (req.headers.accept && req.headers.accept.includes("application/json")) {
+      return res.status(500).json({ error: err.message || "שגיאה ביצירת PDF" });
+    }
     res.status(500).send("שגיאה ביצירת PDF");
   }
 });

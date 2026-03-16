@@ -201,8 +201,11 @@ const REQUIRED_FIELDS = [
 
 async function extract106(filePath, mimetype) {
   try {
-    if (!filePath) {
-      throw new Error("File path is required");
+    if (!filePath || typeof filePath !== "string") {
+      return { success: false, error: "חסר נתיב קובץ" };
+    }
+    if (!fs.existsSync(filePath)) {
+      return { success: false, error: "הקובץ לא נמצא בשרת" };
     }
 
     const llmEnabled = process.env.LLM_ENABLED === "true" || process.env.LLM_ENABLED === "1";

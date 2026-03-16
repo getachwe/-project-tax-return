@@ -204,55 +204,55 @@ export const UploadForm: React.FC = () => {
 
   return (
     <>
-      <div className="space-y-8">
+      <div className="max-w-3xl mx-auto space-y-4">
+        {/* Tips box – smaller and centered */}
+        <div className="bg-card text-card-foreground rounded-3xl shadow-md border border-border px-4 sm:px-5 py-4">
+          <UploadTips />
+        </div>
+
+        {/* Upload box – smaller and centered */}
+        <div className="bg-card text-card-foreground rounded-3xl shadow-xl border border-border px-5 sm:px-6 py-6 sm:py-7">
         {/* Header */}
-        <div className="text-center">
+        <div className="text-center mb-8">
           <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg mx-auto mb-4">
             <Upload className="h-8 w-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-700 to-purple-700 bg-clip-text text-transparent mb-3">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
             העלאת טופס 106
           </h1>
-          <p className="text-gray-600 text-lg leading-relaxed max-w-2xl mx-auto">
-            בחר/י טופס 106 או גרור/י לכאן
+          <p className="text-muted-foreground text-base sm:text-lg leading-relaxed max-w-2xl mx-auto">
+            בחר/י טופס 106 או גרור/י לכאן, ואז המשך לשלב הבא.
           </p>
         </div>
 
-        {/* Main Content */}
-        <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-start">
-          {/* Upload Actions */}
-          <div className="space-y-6">
-            <UploadDropzone
-              onFileUpload={handleFileUpload}
-              isLoading={isLoading}
-              selectedFile={selectedFile}
-            />
+          {/* Upload content */}
+          <div className="max-w-xl mx-auto space-y-5">
+          <UploadDropzone
+            onFileUpload={handleFileUpload}
+            isLoading={isLoading}
+            selectedFile={selectedFile}
+          />
 
-            <div className="space-y-3">
-              {selectedFile && !isLoading && !missingFields && (
-                <button
-                  onClick={() => goToNextStep()}
-                  className="w-full h-12 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white rounded-xl font-medium shadow-md flex items-center justify-center gap-2 transition ease-in-out duration-200 hover:scale-[1.01]"
-                >
-                  <ArrowRight className="h-5 w-5" />
-                  המשך לשלב הבא
-                </button>
-              )}
+          <div className="grid sm:grid-cols-2 gap-3 mt-2">
+            <button
+              onClick={handleManualEntry}
+              className="h-11 sm:h-12 btn-secondary rounded-xl flex items-center justify-center gap-2"
+            >
+              <Pencil className="h-5 w-5" />
+              הזנה ידנית
+            </button>
+            {selectedFile && !isLoading && !missingFields && (
               <button
-                onClick={handleManualEntry}
-                className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium shadow-md flex items-center justify-center gap-2 transition ease-in-out duration-200 hover:scale-[1.01]"
+                onClick={() => goToNextStep()}
+                className="h-11 sm:h-12 btn-primary rounded-xl flex items-center justify-center gap-2"
               >
-                <Pencil className="h-5 w-5" />
-                הזנה ידנית
+                <ArrowRight className="h-5 w-5" />
+                המשך לשלב הבא
               </button>
-            </div>
-          </div>
-
-          {/* Tips */}
-          <div className="lg:pt-20 xl:pt-24">
-            <UploadTips />
+            )}
           </div>
         </div>
+      </div>
       </div>
 
       {/* Progress Modal */}

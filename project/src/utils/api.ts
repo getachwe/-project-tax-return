@@ -69,6 +69,15 @@ export async function apiResetPassword(email: string): Promise<any> {
   return res.json();
 }
 
+// Current authenticated user (Supabase /auth/me wrapper)
+export async function apiMe(token: string): Promise<any> {
+  const res = await fetch(`${BASE_URL}/api/auth/me`, {
+    headers: { ...getAuthHeader(token) },
+  });
+  if (!res.ok) throw new Error(await parseApiError(res));
+  return res.json();
+}
+
 export async function apiUpdatePassword(token: string, newPassword: string): Promise<void> {
   const res = await fetch(`${BASE_URL}/api/auth/update-password`, {
     method: "POST",
@@ -213,8 +222,17 @@ export async function apiProcess106(file: File): Promise<{
     method: "POST",
     body: formData,
   });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+  const text = await res.text();
+  if (!res.ok) {
+    try {
+      const j = JSON.parse(text);
+      throw new Error((j as { error?: string }).error || text || "שגיאה בעיבוד הטופס");
+    } catch (e: any) {
+      if (e.message && e.message !== text) throw e;
+      throw new Error(text || "שגיאה בעיבוד הטופס");
+    }
+  }
+  return text ? JSON.parse(text) : {};
 }
 
 // Send tax return email
@@ -242,6 +260,26 @@ export async function apiCalculateTax(taxData: any): Promise<any> {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(taxData),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+// Simulate tax scenarios
+export async function apiSimulateTax(
+  taxData: any,
+  scenario: { type: string; newSalary?: number; amount?: number }
+): Promise<{
+  currentRefund: number;
+  simulatedRefund: number;
+  delta: number;
+  scenarioDescription: string;
+  type: string;
+}> {
+  const res = await fetch(`${BASE_URL}/api/simulate-tax`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...taxData, scenario }),
   });
   if (!res.ok) throw new Error(await res.text());
   return res.json();
