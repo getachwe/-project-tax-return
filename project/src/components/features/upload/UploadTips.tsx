@@ -16,31 +16,47 @@ export const UploadTips: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-3">
-      <h3 className="text-base font-semibold text-foreground">טיפים להעלאת הקובץ</h3>
-      <div className="space-y-2">
+    <details className="group" dir="rtl">
+      <summary className="cursor-pointer select-none list-none flex items-center justify-between gap-3">
+        <div>
+          <div className="text-sm font-semibold text-foreground">
+            טיפים להעלאה (אופציונלי)
+          </div>
+          <div className="text-xs text-muted-foreground mt-0.5">
+            2 טיפים קטנים שיעזרו לחילוץ להיות מדויק יותר
+          </div>
+        </div>
+        <span className="text-xs text-muted-foreground group-open:hidden">
+          הצג
+        </span>
+        <span className="text-xs text-muted-foreground hidden group-open:inline">
+          הסתר
+        </span>
+      </summary>
+
+      <div className="mt-3 space-y-2">
         {tips.map((tip, index) => {
           const IconComponent = tip.icon;
           return (
             <div
               key={index}
-              className="flex items-start gap-2.5 p-2.5 bg-card border border-border rounded-xl text-sm"
+              className="flex items-start gap-2.5 p-2.5 bg-muted/40 border border-border rounded-xl"
             >
-              <div className="flex-shrink-0 w-7 h-7 bg-blue-100 rounded-full flex items-center justify-center">
+              <div className="flex-shrink-0 w-7 h-7 bg-blue-100 rounded-full flex items-center justify-center border border-blue-200">
                 <IconComponent className="h-4 w-4 text-blue-600" />
               </div>
-              <div>
-                <h4 className="font-medium text-foreground text-xs mb-0.5">
+              <div className="min-w-0">
+                <div className="font-medium text-foreground text-xs mb-0.5">
                   {tip.title}
-                </h4>
-                <p className="text-muted-foreground text-xs leading-relaxed">
+                </div>
+                <div className="text-muted-foreground text-xs leading-relaxed">
                   {tip.description}
-                </p>
+                </div>
               </div>
             </div>
           );
         })}
       </div>
-    </div>
+    </details>
   );
 };

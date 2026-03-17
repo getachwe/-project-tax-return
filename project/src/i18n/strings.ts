@@ -43,7 +43,7 @@ type Dict = Record<I18nKey, string>;
 const he: Dict = {
   "nav.navigation": "ניווט",
   "nav.dashboard": "דשבורד",
-  "nav.incomes": "הכנסות",
+  "nav.incomes": "העלאת מסמכים",
   "nav.history": "היסטוריה",
   "nav.settings": "הגדרות",
   "nav.profile": "פרופיל",
@@ -82,7 +82,7 @@ const he: Dict = {
 const en: Dict = {
   "nav.navigation": "Navigation",
   "nav.dashboard": "Dashboard",
-  "nav.incomes": "Incomes",
+  "nav.incomes": "Upload",
   "nav.history": "History",
   "nav.settings": "Settings",
   "nav.profile": "Profile",

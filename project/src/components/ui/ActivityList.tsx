@@ -40,9 +40,11 @@ export const ActivityList: React.FC<{ items: ActivityItem[] }> = ({ items }) => 
               </div>
             </div>
             {it.statusLabel && (
-              <StatusBadge variant={it.statusVariant || "neutral"}>
+              <div className="shrink-0">
+                <StatusBadge variant={it.statusVariant || "neutral"}>
                 {it.statusLabel}
-              </StatusBadge>
+                </StatusBadge>
+              </div>
             )}
           </div>
         );

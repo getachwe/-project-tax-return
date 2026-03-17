@@ -332,19 +332,19 @@ export const ResultsDisplay: React.FC = () => {
 
   const timelineItems = [
     {
-      title: "Analysis Started",
+      title: "התחלנו לנתח",
       date: String(currentTaxData.taxYear || ""),
       description: "המערכת ניתחה את הנתונים שסיפקת",
       status: "done" as const,
     },
     {
-      title: "Refund Calculation",
+      title: "חישוב החזר",
       date: loading ? "כעת" : "",
       description: "חישוב החזר מס ונקודות זיכוי",
       status: loading ? ("active" as const) : ("done" as const),
     },
     {
-      title: "Completed",
+      title: "מוכן להגשה",
       date: hasCompletedDelivery
         ? pdfDownloadedAt || emailSentAt || ""
         : "",
@@ -357,103 +357,268 @@ export const ResultsDisplay: React.FC = () => {
 
   const quickHistoryItems = [
     {
-      title: "Tax refund calculated",
-      date: "Today",
-      statusLabel: "Approved",
+      title: "חישוב בוצע",
+      date: "היום",
+      statusLabel: "אושר",
       statusVariant: "success" as const,
       icon: "check" as const,
     },
     {
       title: currentTaxData.hasFormData
-        ? "Form 106 processed"
-        : "Manual data entered",
-      date: "Today",
-      statusLabel: "Completed",
+        ? "טופס 106 עובד"
+        : "נתונים הוזנו ידנית",
+      date: "היום",
+      statusLabel: "הושלם",
       statusVariant: "info" as const,
       icon: currentTaxData.hasFormData ? ("upload" as const) : ("file" as const),
     },
   ];
 
+  const heroAmountAbs = Math.abs(refundNum);
+  const heroIsRefund = refundNum >= 0;
+  const heroTitle = "סטטוס החזר המס שלך";
+  const heroStatus = hasCompletedDelivery
+    ? "הבקשה מוכנה להגשה"
+    : "הבקשה נמצאת בבדיקה";
+  const heroPrimaryCtaLabel = hasCompletedDelivery
+    ? "הגש בקשה להחזר"
+    : "המשך תהליך";
+
+  const fmtIls = (n: number) => `${Math.round(n).toLocaleString("he-IL")} ₪`;
+
+  const handleDownloadPdf = async () => {
+    setDownloading(true);
+    try {
+      const token = localStorage.getItem("authToken");
+      const response = await fetch(`${API_BASE}/api/generate-pdf`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          ...currentTaxData,
+          ...result,
+          saveToStorage: false,
+        }),
+      });
+      if (!response.ok) {
+        const errText = await response.text();
+        let errMsg = "שגיאה ביצירת ה-PDF בשרת";
+        try {
+          const j = JSON.parse(errText);
+          if (typeof (j as { error?: string }).error === "string")
+            errMsg = (j as { error: string }).error;
+        } catch (_) {}
+        setError(errMsg);
+        return;
+      }
+      const disp = response.headers.get("Content-Disposition") || "";
+      const match = disp.match(/filename\s*=\s*"?([^";]+)"?/i);
+      const serverName = match ? match[1] : null;
+      const td = currentTaxData as Record<string, unknown>;
+      const year = String(td.taxYear ?? "");
+      const full = [td.firstName, td.lastName]
+        .filter(Boolean)
+        .map((v) => String(v))
+        .join(" ");
+      const fallbackName = (
+        full || String(td.employeeName ?? td.name ?? "tax-return")
+      )
+        .replace(/[^\u0590-\u05FF\w\s-]/g, "")
+        .replace(/\s+/g, "_");
+      const filename = serverName || `${fallbackName}-${year}.pdf`;
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      setPdfDownloadedAt(new Date().toLocaleString("he-IL"));
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   return (
-    <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-4">
-      <div className="lg:col-span-8 space-y-4">
+    <div
+      dir="ltr"
+      className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-4"
+    >
+      {/* Secondary info (left side) */}
+      <div className="lg:col-span-4 lg:col-start-1 lg:row-start-1 lg:row-span-4 lg:w-60 lg:justify-self-start">
+        <div className="lg:sticky lg:top-[76px] lg:h-[calc(100vh-76px-16px)]">
+          <DashboardCard
+            title="מידע משני"
+            subtitle="היסטוריה ואבטחה"
+            className="rounded-3xl overflow-hidden shadow-sm bg-card/80 backdrop-blur h-full"
+          >
+            <div className="flex flex-col h-full">
+              <div className="flex-1 min-h-0 overflow-auto pr-1">
+                <details open>
+                  <summary className="cursor-pointer text-sm text-muted-foreground">
+                    היסטוריית בקשות
+                  </summary>
+                  <div className="mt-3">
+                    <ActivityList items={quickHistoryItems} />
+                  </div>
+                </details>
+
+                <details className="mt-4" open>
+                  <summary className="cursor-pointer text-sm text-muted-foreground">
+                    אבטחת מידע
+                  </summary>
+                  <div className="mt-3 space-y-3">
+                    <div className="rounded-xl border border-border bg-muted/10 p-4 flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center">
+                        <ShieldCheck className="h-5 w-5 text-emerald-700" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold text-foreground">
+                          הצפנה
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          TLS בתעבורה (פעיל)
+                        </div>
+                      </div>
+                      <StatusBadge variant="success">מאובטח</StatusBadge>
+                    </div>
+
+                    <div className="rounded-xl border border-border bg-muted/10 p-4 flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-xl bg-sky-50 border border-sky-200 flex items-center justify-center">
+                        <Lock className="h-5 w-5 text-sky-700" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold text-foreground">
+                          הגנת התחברות
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Supabase Auth
+                        </div>
+                      </div>
+                      <StatusBadge variant="info">פעיל</StatusBadge>
+                    </div>
+                  </div>
+                </details>
+              </div>
+            </div>
+          </DashboardCard>
+        </div>
+      </div>
+
+      {/* Hero */}
+      <div className="lg:col-span-8 lg:col-start-5">
         <DashboardCard
-          title="Dashboard Overview"
-          subtitle={`Analysis (Step 2) • שנת מס ${currentTaxData.taxYear}`}
+          title={heroTitle}
+          subtitle={heroStatus}
           rightSlot={
-            <StatusBadge variant={refundNum > 0 ? "success" : "neutral"}>
-              {refundNum > 0 ? "Refund" : "No refund"}
+            <StatusBadge variant={heroIsRefund ? "success" : "danger"}>
+              {heroIsRefund ? "החזר" : "חוב"}
+            </StatusBadge>
+          }
+        >
+          <div dir="rtl">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="min-w-0">
+              <div className="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground">
+                {fmtIls(heroAmountAbs)} {heroIsRefund ? "החזר מס" : "חוב למס הכנסה"}
+              </div>
+              <div className="mt-2 text-sm text-muted-foreground leading-relaxed">
+                מבוסס על הנתונים שהוזנו. ניתן להוריד דוח PDF או לשלוח למייל ולהמשיך את התהליך.
+              </div>
+            </div>
+          </div>
+          </div>
+        </DashboardCard>
+      </div>
+
+      {/* Progress */}
+      <div className="lg:col-span-8 lg:col-start-5">
+        <DashboardCard title="התקדמות בתהליך" subtitle="3 שלבים">
+          <div dir="rtl">
+            <Timeline items={timelineItems} />
+          </div>
+        </DashboardCard>
+      </div>
+
+      {/* Main content (right side in RTL) */}
+      <div className="lg:col-span-8 lg:col-start-5 space-y-4">
+        <div dir="rtl" className="space-y-4">
+        <DashboardCard
+          title="מידע מרכזי"
+          subtitle={`שנת מס ${currentTaxData.taxYear}`}
+          rightSlot={
+            <StatusBadge variant={heroIsRefund ? "success" : "danger"}>
+              {heroIsRefund ? "החזר צפוי" : "חוב צפוי"}
             </StatusBadge>
           }
         >
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            <div className="rounded-2xl border border-slate-200 bg-white/70 p-4">
-              <div className="text-xs text-slate-500">Estimated Refund</div>
-              <div className="mt-2 text-3xl font-bold text-slate-900">
-                {refundNum.toLocaleString()} ₪
+            <div className="rounded-xl border border-border bg-muted/20 p-4">
+              <div className="text-xs text-muted-foreground">הערכת החזר / חוב</div>
+              <div className="mt-2 text-2xl font-bold text-foreground">
+                {fmtIls(heroAmountAbs)}
               </div>
               <div className="mt-2">
-                <StatusBadge variant={refundNum > 0 ? "success" : "neutral"}>
-                  {refundNum > 0 ? "Pending" : "—"}
+                <StatusBadge variant={heroIsRefund ? "success" : "danger"}>
+                  {heroIsRefund ? "החזר" : "חוב"}
                 </StatusBadge>
               </div>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-white/70 p-4">
-              <div className="text-xs text-slate-500">Income</div>
-              <div className="mt-2 text-2xl font-bold text-slate-900">
-                {incomeNum.toLocaleString()} ₪
+            <div className="rounded-xl border border-border bg-muted/20 p-4">
+              <div className="text-xs text-muted-foreground">כמה הכנסות דווחו</div>
+              <div className="mt-2 text-2xl font-bold text-foreground">
+                {fmtIls(incomeNum)}
               </div>
-              <div className="mt-2 text-xs text-slate-500">Yearly</div>
+              <div className="mt-2 text-xs text-muted-foreground">שנתי</div>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-white/70 p-4">
-              <div className="text-xs text-slate-500">Tax Paid</div>
-              <div className="mt-2 text-2xl font-bold text-slate-900">
-                {taxPaidNum.toLocaleString()} ₪
+            <div className="rounded-xl border border-border bg-muted/20 p-4">
+              <div className="text-xs text-muted-foreground">כמה מס שילמת השנה</div>
+              <div className="mt-2 text-2xl font-bold text-foreground">
+                {fmtIls(taxPaidNum)}
               </div>
-              <div className="mt-2 text-xs text-slate-500">Withholding</div>
+              <div className="mt-2 text-xs text-muted-foreground">ניכויים</div>
             </div>
           </div>
 
-          <div className="mt-4 rounded-2xl border border-slate-200 bg-white/70 p-4">
+          <div className="mt-5 rounded-xl border border-border bg-muted/10 p-4">
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <div className="text-sm font-semibold text-slate-900">
-                  Analysis Progress
+                <div className="text-sm font-semibold text-foreground">
+                  אמינות הנתונים
                 </div>
-                <div className="text-xs text-slate-500 truncate">
+                <div className="text-xs text-muted-foreground truncate">
                   {documentSource ? `מקור הנתונים: ${documentSource}` : " "}
                 </div>
               </div>
               {riskLevel && (
                 <StatusBadge variant={riskVariant as any}>
-                  Risk:{" "}
                   {riskLevel === "low"
-                    ? "Low"
+                    ? "סיכון נמוך"
                     : riskLevel === "medium"
-                    ? "Medium"
-                    : "High"}
+                    ? "סיכון בינוני"
+                    : "סיכון גבוה"}
                 </StatusBadge>
               )}
             </div>
-            <div className="mt-3 h-2 rounded-full bg-slate-200 overflow-hidden">
+            <div className="mt-3 h-2 rounded-full bg-border overflow-hidden">
               <div
                 className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-sky-500 transition-all"
                 style={{ width: `${progressPct}%` }}
               />
             </div>
-            <div className="mt-2 text-xs text-slate-500">
-              Confidence: {progressPct}%
+            <div className="mt-2 text-xs text-muted-foreground">
+              {progressPct}% ביטחון
             </div>
           </div>
         </DashboardCard>
 
-        <DashboardCard title="Claim Status Timeline" subtitle="Status updates">
-          <Timeline items={timelineItems} />
-        </DashboardCard>
-
-        <DashboardCard title="Refund explanation" subtitle="Why you got this result">
+        <DashboardCard title="מה זה אומר בפועל?" subtitle="הסבר קצר והמלצות">
           {whyRefund && typeof whyRefund === "string" ? (
             <div className="text-base text-foreground leading-relaxed">
               {whyRefund}
@@ -467,7 +632,7 @@ export const ResultsDisplay: React.FC = () => {
           {Array.isArray(recommendations) && recommendations.length > 0 && (
             <div className="mt-4">
               <div className="text-sm font-semibold text-foreground mb-2">
-                Recommendations
+                המלצות להמשך
               </div>
               <ul className="space-y-1.5 text-sm text-muted-foreground">
                 {(recommendations as string[]).slice(0, 5).map((rec, i) => (
@@ -480,58 +645,47 @@ export const ResultsDisplay: React.FC = () => {
             </div>
           )}
         </DashboardCard>
-      </div>
 
-      <div className="lg:col-span-4 space-y-4">
-        <DashboardCard title="Quick History" subtitle="Recent activity">
-          <ActivityList items={quickHistoryItems} />
-        </DashboardCard>
-
-        <DashboardCard title="Security Status" subtitle="Account protection">
-          <div className="space-y-3">
-            <div className="rounded-2xl border border-slate-200 bg-white/70 p-4 flex items-center gap-3">
-              <div className="h-10 w-10 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center">
-                <ShieldCheck className="h-5 w-5 text-emerald-700" />
-              </div>
-              <div className="min-w-0">
-                <div className="text-sm font-semibold text-slate-900">
-                  Encryption
+        <DashboardCard title="איך חישבנו את החזר המס שלך" subtitle="פירוט חישוב ברור">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {[
+              ["הכנסה שנתית", fmtIls(incomeNum)],
+              ["מס ששולם", fmtIls(taxPaidNum)],
+              ["נקודות זיכוי", String(creditPointsNum || 0)],
+              ["ערך נקודת זיכוי", fmtIls(creditValueNum || 0)],
+              ["מס ברוטו", fmtIls(grossTaxNum || 0)],
+              ["מס נטו", fmtIls(netTaxNum || 0)],
+              ["החזר / חוב", fmtIls(refundNum)],
+            ].map(([label, value]) => (
+              <div
+                key={label}
+                className="rounded-xl border border-border bg-muted/10 px-4 py-3 flex items-center justify-between gap-4"
+              >
+                <div className="text-sm text-muted-foreground">{label}</div>
+                <div className="text-sm font-semibold text-foreground tabular-nums">
+                  {value}
                 </div>
-                <div className="text-xs text-slate-500">
-                  TLS in transit (active)
-                </div>
               </div>
-              <StatusBadge variant="success">Secure</StatusBadge>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-white/70 p-4 flex items-center gap-3">
-              <div className="h-10 w-10 rounded-2xl bg-sky-50 border border-sky-200 flex items-center justify-center">
-                <Lock className="h-5 w-5 text-sky-700" />
-              </div>
-              <div className="min-w-0">
-                <div className="text-sm font-semibold text-slate-900">
-                  Login protection
-                </div>
-                <div className="text-xs text-slate-500">Supabase Auth</div>
-              </div>
-              <StatusBadge variant="info">Active</StatusBadge>
-            </div>
+            ))}
           </div>
+
+          <details className="mt-4">
+            <summary className="cursor-pointer text-sm text-muted-foreground">
+              הצג פירוט מלא
+            </summary>
+            <div className="mt-3 rounded-xl bg-muted/60 px-4 py-3 text-sm text-muted-foreground whitespace-pre-line leading-relaxed font-mono">
+              {explanationStr}
+            </div>
+          </details>
         </DashboardCard>
+        </div>
       </div>
 
-      <div className="lg:col-span-12">
-        <DashboardCard title="Detailed breakdown" subtitle="Full explanation + actions">
-          <div className="mt-1 rounded-2xl bg-muted/60 px-4 py-3 text-sm text-muted-foreground whitespace-pre-line leading-relaxed font-mono">
-            {explanationStr}
-          </div>
-        </DashboardCard>
-      </div>
-
-      <div className="lg:col-span-12">
-        <DashboardCard title="Actions" subtitle="Download PDF / Email / Navigation">
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
-            <div className="flex gap-2 w-full sm:w-auto">
+      <div className="lg:col-span-8 lg:col-start-5">
+        <DashboardCard title="פעולות" subtitle="השלב הבא שלך">
+          <div dir="rtl">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            <div className="flex flex-wrap gap-2 w-full sm:w-auto">
               <button
                 type="button"
                 onClick={() => {
@@ -557,7 +711,7 @@ export const ResultsDisplay: React.FC = () => {
                 חישוב חדש
               </button>
             </div>
-            <div className="flex gap-2 w-full sm:w-auto">
+            <div className="flex flex-wrap gap-2 w-full sm:w-auto">
               <button
                 type="button"
                 className="btn-secondary w-full sm:w-auto"
@@ -572,63 +726,7 @@ export const ResultsDisplay: React.FC = () => {
                 type="button"
                 className="btn-secondary w-full sm:w-auto disabled:opacity-50"
                 disabled={downloading}
-                onClick={async () => {
-                  setDownloading(true);
-                  try {
-                    const token = localStorage.getItem("authToken");
-                    const response = await fetch(`${API_BASE}/api/generate-pdf`, {
-                      method: "POST",
-                      headers: {
-                        "Content-Type": "application/json",
-                        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-                      },
-                      body: JSON.stringify({
-                        ...currentTaxData,
-                        ...result,
-                        saveToStorage: false,
-                      }),
-                    });
-                    if (!response.ok) {
-                      const errText = await response.text();
-                      let errMsg = "שגיאה ביצירת ה-PDF בשרת";
-                      try {
-                        const j = JSON.parse(errText);
-                        if (typeof (j as { error?: string }).error === "string")
-                          errMsg = (j as { error: string }).error;
-                      } catch (_) {}
-                      setError(errMsg);
-                      return;
-                    }
-                    const disp =
-                      response.headers.get("Content-Disposition") || "";
-                    const match = disp.match(/filename\s*=\s*"?([^";]+)"?/i);
-                    const serverName = match ? match[1] : null;
-                    const td = currentTaxData as Record<string, unknown>;
-                    const year = String(td.taxYear ?? "");
-                    const full = [td.firstName, td.lastName]
-                      .filter(Boolean)
-                      .map((v) => String(v))
-                      .join(" ");
-                    const fallbackName = (
-                      full || String(td.employeeName ?? td.name ?? "tax-return")
-                    )
-                      .replace(/[^\u0590-\u05FF\w\s-]/g, "")
-                      .replace(/\s+/g, "_");
-                    const filename = serverName || `${fallbackName}-${year}.pdf`;
-                    const blob = await response.blob();
-                    const url = window.URL.createObjectURL(blob);
-                    const link = document.createElement("a");
-                    link.href = url;
-                    link.download = filename;
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    window.URL.revokeObjectURL(url);
-                    setPdfDownloadedAt(new Date().toLocaleString("he-IL"));
-                  } finally {
-                    setDownloading(false);
-                  }
-                }}
+                onClick={handleDownloadPdf}
               >
                 {downloading ? "מוריד..." : "שמור PDF"}
               </button>
@@ -640,6 +738,7 @@ export const ResultsDisplay: React.FC = () => {
                 שלח במייל
               </button>
             </div>
+          </div>
           </div>
         </DashboardCard>
       </div>

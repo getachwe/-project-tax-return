@@ -6,9 +6,9 @@ export const ProgressSteps: React.FC = () => {
   const { currentStep } = useTaxCalculator();
 
   const steps = [
-    { id: 1, name: "העלאת טופס", icon: Upload, color: "blue" },
-    { id: 2, name: "השלמת מידע", icon: Pencil, color: "purple" },
-    { id: 3, name: "תוצאות", icon: BarChart, color: "emerald" },
+    { id: 1, name: "העלאת מסמכים", icon: Upload, color: "blue" },
+    { id: 2, name: "בדיקה וניתוח", icon: Pencil, color: "purple" },
+    { id: 3, name: "קבלת החזר", icon: BarChart, color: "emerald" },
   ];
 
   const getStepColors = (
@@ -31,10 +31,10 @@ export const ProgressSteps: React.FC = () => {
   };
 
   return (
-    <div className="relative bg-gray-50 rounded-2xl p-8 mb-8">
+    <div className="relative bg-card rounded-xl border border-border p-6 mb-6 shadow-[0_4px_6px_-1px_rgba(0,0,0,0.1)]">
       <div className="relative">
         {/* Progress Line - positioned to center with circles */}
-        <div className="absolute top-8 left-0 right-0 h-1 bg-gray-200 rounded-full">
+        <div className="absolute top-8 left-0 right-0 h-1 bg-border rounded-full">
           <div
             className="absolute top-0 h-full bg-blue-500 rounded-full transition-all duration-700"
             style={{

@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useEffect } from "react";
 import { useDropzone } from "react-dropzone";
 import { Upload, FilePlus, Loader2 } from "lucide-react";
 
@@ -6,12 +6,14 @@ interface UploadDropzoneProps {
   onFileUpload: (file: File) => Promise<void>;
   isLoading: boolean;
   selectedFile: File | null;
+  onOpenReady?: (open: () => void) => void;
 }
 
 export const UploadDropzone: React.FC<UploadDropzoneProps> = ({
   onFileUpload,
   isLoading,
   selectedFile,
+  onOpenReady,
 }) => {
   const onDrop = useCallback(
     async (acceptedFiles: File[]) => {
@@ -22,7 +24,7 @@ export const UploadDropzone: React.FC<UploadDropzoneProps> = ({
     [onFileUpload]
   );
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+  const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     onDrop,
     accept: {
       "application/pdf": [".pdf"],
@@ -31,20 +33,24 @@ export const UploadDropzone: React.FC<UploadDropzoneProps> = ({
     },
     maxFiles: 1,
     maxSize: 5 * 1024 * 1024, // 5MB
+    noClick: true, // we provide our own click target
   });
+
+  useEffect(() => {
+    if (onOpenReady) onOpenReady(open);
+  }, [onOpenReady, open]);
 
   return (
     <div
       {...getRootProps()}
-      className={`
-        relative border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all duration-300 min-h-[180px] lg:min-h-[220px] xl:min-h-[240px]
-        ${
-          isDragActive
-            ? "border-blue-500 bg-blue-50"
-            : "border-gray-300 hover:border-blue-500 hover:shadow-md"
-        }
-        ${isLoading ? "pointer-events-none opacity-50" : ""}
-      `}
+      className={[
+        "relative border-2 border-dashed rounded-xl p-6 sm:p-8 text-center transition-all duration-300",
+        "min-h-[160px] sm:min-h-[180px]",
+        isDragActive
+          ? "border-blue-500 bg-blue-50/60"
+          : "border-border bg-card hover:border-blue-400 hover:bg-muted/30 hover:shadow-sm",
+        isLoading ? "pointer-events-none opacity-60" : "",
+      ].join(" ")}
     >
       <input {...getInputProps()} />
 
@@ -52,30 +58,50 @@ export const UploadDropzone: React.FC<UploadDropzoneProps> = ({
         {isLoading ? (
           <div className="flex flex-col items-center gap-4">
             <Loader2 className="h-12 w-12 text-blue-500 animate-spin" />
-            <p className="text-gray-600">מעבד קובץ...</p>
+            <p className="text-muted-foreground">מעלה ומנתח את הקובץ…</p>
           </div>
         ) : selectedFile ? (
           <div className="flex flex-col items-center gap-4">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+            <div className="w-14 h-14 bg-emerald-100 rounded-2xl flex items-center justify-center border border-emerald-200">
               <FilePlus className="h-8 w-8 text-green-600" />
             </div>
             <div>
-              <p className="font-medium text-gray-900">{selectedFile.name}</p>
-              <p className="text-sm text-gray-500">
+              <p className="font-semibold text-foreground">{selectedFile.name}</p>
+              <p className="text-sm text-muted-foreground">
                 {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
               </p>
             </div>
+            <button
+              type="button"
+              onClick={open}
+              className="btn-secondary rounded-xl px-4 py-2 text-sm"
+            >
+              החלף קובץ
+            </button>
           </div>
         ) : (
           <div className="flex flex-col items-center gap-4">
-            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
+            <div className="w-14 h-14 bg-blue-100 rounded-2xl flex items-center justify-center border border-blue-200">
               <Upload className="h-8 w-8 text-blue-600" />
             </div>
             <div>
-              <p className="text-gray-600 mb-2">גרור קובץ לכאן</p>
-              <p className="text-sm text-gray-500">או לחץ לבחירת קובץ</p>
-              <p className="text-xs text-gray-400 mt-2">PDF, JPG, PNG • 50MB</p>
+              <p className="text-foreground font-medium mb-1">
+                גרור קובץ לכאן
+              </p>
+              <p className="text-sm text-muted-foreground">
+                או לחץ על הכפתור כדי לבחור קובץ מהמחשב
+              </p>
+              <p className="text-xs text-muted-foreground mt-2">
+                PDF / JPG / PNG • עד 5MB • קובץ אחד
+              </p>
             </div>
+            <button
+              type="button"
+              onClick={open}
+              className="btn-primary rounded-xl px-5 py-2.5 text-sm"
+            >
+              בחר קובץ
+            </button>
           </div>
         )}
       </div>

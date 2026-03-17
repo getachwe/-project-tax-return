@@ -6,7 +6,8 @@ export const DashboardCard: React.FC<{
   rightSlot?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
-}> = ({ title, subtitle, rightSlot, children, className }) => {
+  contentClassName?: string;
+}> = ({ title, subtitle, rightSlot, children, className, contentClassName }) => {
   return (
     <div
       className={[
@@ -29,7 +30,9 @@ export const DashboardCard: React.FC<{
           {rightSlot && <div className="shrink-0">{rightSlot}</div>}
         </div>
       )}
-      <div className="p-6">{children}</div>
+      <div className={["p-6", contentClassName || ""].join(" ")}>
+        {children}
+      </div>
     </div>
   );
 };
