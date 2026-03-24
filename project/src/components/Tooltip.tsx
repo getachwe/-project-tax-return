@@ -1,14 +1,24 @@
 import React from "react";
 
-export const Tooltip: React.FC<{ content: string }> = ({ content }) => (
+export const Tooltip: React.FC<{
+  content: string;
+  /** מחליף את מחלקות ברירת המחדל של אייקון ה־i (למשל צבע/ללא margin) */
+  iconClassName?: string;
+  /** תיאור לקורא מסך עבור אייקון ה־i */
+  ariaLabel?: string;
+}> = ({ content, iconClassName, ariaLabel = "מידע נוסף" }) => (
   <span className="relative group inline-block">
     <svg
-      className="w-4 h-4 text-blue-500 cursor-pointer ml-1 inline align-middle"
+      className={
+        iconClassName ??
+        "w-4 h-4 text-blue-500 cursor-pointer ml-1 inline align-middle"
+      }
       fill="none"
       stroke="currentColor"
       strokeWidth="2"
       viewBox="0 0 24 24"
-      aria-hidden="true"
+      role="img"
+      aria-label={ariaLabel}
       tabIndex={0}
       focusable="true"
     >

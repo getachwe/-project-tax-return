@@ -1,19 +1,19 @@
-import React, { useCallback, useEffect } from "react";
+import React, { useCallback } from "react";
 import { useDropzone } from "react-dropzone";
-import { Upload, FilePlus, Loader2 } from "lucide-react";
+import { Upload, FilePlus, Loader2, Pencil } from "lucide-react";
 
 interface UploadDropzoneProps {
   onFileUpload: (file: File) => Promise<void>;
   isLoading: boolean;
   selectedFile: File | null;
-  onOpenReady?: (open: () => void) => void;
+  onManualEntry: () => void;
 }
 
 export const UploadDropzone: React.FC<UploadDropzoneProps> = ({
   onFileUpload,
   isLoading,
   selectedFile,
-  onOpenReady,
+  onManualEntry,
 }) => {
   const onDrop = useCallback(
     async (acceptedFiles: File[]) => {
@@ -32,13 +32,9 @@ export const UploadDropzone: React.FC<UploadDropzoneProps> = ({
       "image/png": [".png"],
     },
     maxFiles: 1,
-    maxSize: 5 * 1024 * 1024, // 5MB
+    maxSize: 10 * 1024 * 1024, // 10MB
     noClick: true, // we provide our own click target
   });
-
-  useEffect(() => {
-    if (onOpenReady) onOpenReady(open);
-  }, [onOpenReady, open]);
 
   return (
     <div
@@ -73,35 +69,46 @@ export const UploadDropzone: React.FC<UploadDropzoneProps> = ({
             </div>
             <button
               type="button"
-              onClick={open}
+              onClick={(e) => {
+                e.stopPropagation();
+                open();
+              }}
               className="btn-secondary rounded-xl px-4 py-2 text-sm"
             >
               החלף קובץ
             </button>
           </div>
         ) : (
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-14 h-14 bg-blue-100 rounded-2xl flex items-center justify-center border border-blue-200">
+          <div className="flex flex-col items-center gap-5 w-full max-w-md mx-auto">
+            <div className="w-14 h-14 bg-blue-100 rounded-2xl flex items-center justify-center border border-blue-200 shrink-0">
               <Upload className="h-8 w-8 text-blue-600" />
             </div>
-            <div>
-              <p className="text-foreground font-medium mb-1">
-                גרור קובץ לכאן
-              </p>
-              <p className="text-sm text-muted-foreground">
-                או לחץ על הכפתור כדי לבחור קובץ מהמחשב
-              </p>
-              <p className="text-xs text-muted-foreground mt-2">
-                PDF / JPG / PNG • עד 5MB • קובץ אחד
-              </p>
+            <p className="text-xs text-muted-foreground">
+              PDF / JPG / PNG · עד 10MB · קובץ אחד
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 w-full justify-center">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  open();
+                }}
+                className="h-11 sm:h-12 px-6 btn-primary rounded-xl text-sm font-medium"
+              >
+                העלאת קובץ
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onManualEntry();
+                }}
+                className="h-11 sm:h-12 px-6 btn-secondary rounded-xl text-sm font-medium flex items-center justify-center gap-2"
+              >
+                <Pencil className="h-5 w-5 shrink-0" />
+                הזנה ידנית
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={open}
-              className="btn-primary rounded-xl px-5 py-2.5 text-sm"
-            >
-              בחר קובץ
-            </button>
           </div>
         )}
       </div>

@@ -1,13 +1,18 @@
 import React from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
-  WalletCards,
+  Upload,
   History,
+  MessageCircle,
   Settings,
-  User,
+  HelpCircle,
+  LogOut,
+  Plus,
 } from "lucide-react";
 import { useI18n } from "../../i18n/useI18n";
+import { useTaxCalculator } from "../../context/TaxCalculatorContext";
+import { BrandLockup } from "../ui/BrandMark";
 
 type Item = {
   to: string;
@@ -15,67 +20,119 @@ type Item = {
     | "nav.dashboard"
     | "nav.incomes"
     | "nav.history"
-    | "nav.settings"
-    | "nav.profile";
+    | "nav.assistant"
+    | "nav.settings";
   icon: React.ComponentType<{ className?: string }>;
 };
 
 const items: Item[] = [
   { to: "/", labelKey: "nav.dashboard", icon: LayoutDashboard },
-  { to: "/incomes", labelKey: "nav.incomes", icon: WalletCards },
+  { to: "/incomes", labelKey: "nav.incomes", icon: Upload },
   { to: "/history", labelKey: "nav.history", icon: History },
+  { to: "/assistant", labelKey: "nav.assistant", icon: MessageCircle },
   { to: "/settings", labelKey: "nav.settings", icon: Settings },
-  { to: "/profile", labelKey: "nav.profile", icon: User },
 ];
 
 export const Sidebar: React.FC<{ onNavigate?: () => void }> = ({
   onNavigate,
 }) => {
   const { t } = useI18n();
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const { resetCalculator } = useTaxCalculator();
+
+  const openHelp = () => {
+    window.dispatchEvent(new CustomEvent("dashboard:openHelp"));
+    onNavigate?.();
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("lastActivity");
+    window.dispatchEvent(new CustomEvent("auth:loggedOut"));
+    onNavigate?.();
+  };
+
+  const newRequest = () => {
+    resetCalculator();
+    navigate("/incomes");
+    onNavigate?.();
+  };
+
   return (
-    <aside className="h-full w-60 bg-card/80 backdrop-blur border-r border-border px-3 py-4 text-foreground">
-      <div className="px-3 pb-4">
-        <div className="text-xs uppercase tracking-widest text-muted-foreground">
-          {t("nav.navigation")}
-        </div>
+    <aside className="h-full w-[272px] bg-[#E6E9FF] border-l border-[#d8dcf0] px-4 py-6 flex flex-col text-[#131b2e]">
+      <div className="px-2 pb-6">
+        <BrandLockup
+          size="md"
+          title={t("app.title")}
+          subtitle={t("app.subtitle")}
+          className="w-full"
+        />
       </div>
 
-      <nav className="space-y-1">
+      <nav className="space-y-1 flex-1">
         {items.map((item) => {
           const Icon = item.icon;
+          const active =
+            item.to === "/"
+              ? pathname === "/" || pathname === "/results"
+              : pathname === item.to;
           return (
             <NavLink
               key={item.to}
               to={item.to}
               onClick={onNavigate}
-              className={({ isActive }) =>
+              className={() =>
                 [
-                  "group flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition",
-                  isActive
-                    ? "bg-muted text-foreground border border-border shadow-sm"
-                    : "text-muted-foreground hover:bg-muted/70 hover:text-foreground",
+                  "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all border-r-4",
+                  active
+                    ? "bg-white/90 text-[#006D4E] shadow-sm border-[#00A86B] font-bold"
+                    : "text-[#4a5568] hover:bg-white/50 border-transparent hover:text-[#131b2e]",
                 ].join(" ")
               }
               end={item.to === "/"}
             >
-              <Icon className="h-4 w-4 text-muted-foreground group-hover:text-foreground" />
-              <span className="font-medium">{t(item.labelKey)}</span>
+              <Icon
+                className={
+                  active
+                    ? "h-5 w-5 shrink-0 text-[#00A86B]"
+                    : "h-5 w-5 shrink-0 text-[#64748b]"
+                }
+              />
+              <span>{t(item.labelKey)}</span>
             </NavLink>
           );
         })}
       </nav>
 
-      <div className="mt-6 px-3">
-        <div className="rounded-2xl border border-border bg-muted/50 p-4">
-          <div className="text-sm font-semibold text-foreground">
-            {t("app.title")}
-          </div>
-          <div className="text-xs text-muted-foreground mt-1 leading-relaxed">
-            {t("app.subtitle")}
-          </div>
-        </div>
+      <div className="mt-4 space-y-3 pt-4 border-t border-[#d8dcf0]/80">
+        <button
+          type="button"
+          onClick={newRequest}
+          className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#00A86B] hover:bg-[#00925d] text-white font-bold text-sm py-3 px-4 shadow-md transition-colors"
+        >
+          <Plus className="h-5 w-5" strokeWidth={2.5} />
+          בקשת החזר חדשה
+        </button>
+
+        <button
+          type="button"
+          onClick={openHelp}
+          className="w-full flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-[#4a5568] hover:bg-white/60 transition-colors text-right"
+        >
+          <HelpCircle className="h-5 w-5 text-[#006D4E]" />
+          עזרה
+        </button>
+
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="w-full flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-red-600 hover:bg-red-50/80 transition-colors text-right font-medium"
+        >
+          <LogOut className="h-5 w-5" />
+          התנתקות
+        </button>
       </div>
     </aside>
   );
 };
-

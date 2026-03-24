@@ -88,9 +88,11 @@ export const Profile: React.FC<Props> = ({ token }) => {
   }
 
   return (
-    <div className="w-full max-w-lg bg-card text-card-foreground border border-border rounded-xl p-6 space-y-4 rtl">
-      <h2 className="text-lg font-semibold text-foreground">פרופיל משתמש</h2>
-      {message && <div className="text-sm text-muted-foreground">{message}</div>}
+    <div className="w-full max-w-4xl mx-auto bg-card/80 text-card-foreground border border-border/40 rounded p-6 space-y-4 rtl">
+      <h2 className="text-xl font-extrabold text-foreground">פרופיל משתמש</h2>
+      {message && (
+        <div className="text-sm text-muted-foreground">{message}</div>
+      )}
       <div className="grid grid-cols-1 gap-4">
         <label className="flex flex-col gap-1">
           <span className="text-sm text-muted-foreground">שם פרטי</span>
@@ -116,20 +118,27 @@ export const Profile: React.FC<Props> = ({ token }) => {
         <button className="btn-secondary" onClick={onExport} disabled={loading}>
           ייצוא נתונים
         </button>
-        <button
-          className="btn-danger"
-          onClick={() => onDelete(false)}
-          disabled={loading}
-        >
+      </div>
+
+      {/* Sensitive area - destructive actions */}
+      <div className="mt-6 pb-6 border-b-4 border-rose-200">
+        <div className="text-sm font-extrabold text-rose-700 mb-3">אזור רגיש</div>
+        <div className="flex gap-2 flex-wrap">
+          <button
+            className="bg-rose-100 text-rose-700 hover:bg-rose-200 border border-rose-200 px-4 py-2 rounded transition-colors disabled:opacity-50"
+            onClick={() => onDelete(false)}
+            disabled={loading}
+          >
           מחק נתונים
-        </button>
-        <button
-          className="btn-danger"
-          onClick={() => onDelete(true)}
-          disabled={loading}
-        >
+          </button>
+          <button
+            className="bg-rose-100 text-rose-700 hover:bg-rose-200 border border-rose-200 px-4 py-2 rounded transition-colors disabled:opacity-50"
+            onClick={() => onDelete(true)}
+            disabled={loading}
+          >
           מחק נתונים + חשבון
-        </button>
+          </button>
+        </div>
       </div>
     </div>
   );

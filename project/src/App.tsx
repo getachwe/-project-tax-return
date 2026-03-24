@@ -173,7 +173,7 @@ function App() {
   }, [resetActivityTimer, handleUserActivity]);
   return (
     <ErrorBoundary>
-      <div className="min-h-screen flex flex-col font-heebo">
+      <div className="min-h-screen flex flex-col font-sans antialiased">
         <TaxCalculatorProvider>
           {/* Session Timeout Warning */}
           {showTimeoutWarning && token && (
@@ -227,9 +227,9 @@ function App() {
                 path="/*"
                 element={
                   <div className="min-h-screen bg-gradient-to-br from-slate-50 via-sky-50 to-emerald-50 flex flex-col">
-                    <Header />
-                    <main className="flex-1 flex items-center justify-center px-4 py-10">
-                      <div className="w-full max-w-md">
+                    <Header variant="marketing" />
+                    <main className="flex-1 flex px-4 py-6 sm:py-10">
+                      <div className="w-full max-w-6xl mx-auto space-y-8 sm:space-y-10 pb-8">
                         <AuthPanel />
                       </div>
                     </main>

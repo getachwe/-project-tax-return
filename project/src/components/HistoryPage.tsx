@@ -99,6 +99,17 @@ export const HistoryPage: React.FC = () => {
 
   const pages = Math.max(1, Math.ceil(total / pageSize));
 
+  const cumulativeOnPage = useMemo(
+    () =>
+      items.reduce((sum, i) => {
+        const r = Number(
+          (i.calculationResult as { refund?: number })?.refund ?? 0
+        );
+        return sum + Math.max(0, r);
+      }, 0),
+    [items]
+  );
+
   const handlePageChange = (newPage: number) => {
     // Ensure page is within valid range
     const maxPage = Math.ceil(total / pageSize);
@@ -247,28 +258,41 @@ export const HistoryPage: React.FC = () => {
   }
 
   return (
-    <div className="w-full max-w-6xl mx-auto">
-      <div className="card-enhanced">
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl flex items-center justify-center">
-              <History className="h-5 w-5 text-blue-600" />
-            </div>
-            <h2 className="text-2xl font-bold text-gray-800">
-              היסטוריית דוחות
-            </h2>
+    <div className="w-full pb-12" dir="rtl">
+      <div className="w-full max-w-6xl mx-auto px-0 sm:px-1">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6 mb-8">
+          <div>
+            <p className="text-xs font-semibold text-[#64748b] uppercase tracking-wide mb-1">
+              ארכיון בקשות
+            </p>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-[#131b2e]">
+              היסטוריית החזרים
+            </h1>
+            <p className="text-sm text-[#64748b] mt-2 max-w-xl">
+              דוחות קודמים, הורדת PDF, שליחה במייל ופתיחה בדשבורד.
+            </p>
           </div>
-          <button
-            className="btn-secondary flex items-center gap-2"
-            onClick={() => {
-              resetCalculator();
-              navigate("/");
-            }}
-          >
-            <ArrowLeft className="h-4 w-4" />
-            חזרה לעמוד הבית
-          </button>
+          <div className="rounded-xl bg-white border border-[#e8eaf2] shadow-sm px-5 py-4 min-w-[200px]">
+            <p className="text-xs font-medium text-[#64748b] mb-1">
+              סך החזרים בעמוד (מאושרים)
+            </p>
+            <p className="text-2xl font-extrabold text-[#006D4E] tabular-nums">
+              {Math.round(cumulativeOnPage).toLocaleString("he-IL")} ₪
+            </p>
+          </div>
         </div>
+
+        <button
+          type="button"
+          className="mb-6 inline-flex items-center gap-2 text-sm text-[#64748b] hover:text-[#006D4E] transition-colors"
+          onClick={() => {
+            resetCalculator();
+            navigate("/");
+          }}
+        >
+          <ArrowLeft className="h-4 w-4" />
+          חזרה לדשבורד
+        </button>
 
         <HistoryFilters
           searchTerm={q}
@@ -299,13 +323,15 @@ export const HistoryPage: React.FC = () => {
         <HistoryPagination
           currentPage={page}
           totalPages={pages}
+          totalItems={total}
+          pageSize={pageSize}
           onPageChange={handlePageChange}
         />
 
         {error && (
-          <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl">
             <div className="flex items-center gap-2 text-red-700">
-              <AlertCircle className="h-5 w-5" />
+              <AlertCircle className="h-5 w-5 shrink-0" />
               <span className="font-medium">שגיאה:</span>
               <span>
                 {String(error).toLowerCase().includes("jwt")
@@ -315,6 +341,52 @@ export const HistoryPage: React.FC = () => {
             </div>
           </div>
         )}
+
+        <div className="grid md:grid-cols-2 gap-6 mt-10">
+          <div className="rounded-xl bg-[#E6E9FF] border border-[#d8dcf0] p-6 shadow-sm">
+            <div className="flex items-start gap-3">
+              <div className="h-10 w-10 rounded-xl bg-white/80 flex items-center justify-center text-[#006D4E] font-bold">
+                ✦
+              </div>
+              <div>
+                <h3 className="font-extrabold text-[#131b2e]">
+                  תחזית שנת {new Date().getFullYear()}
+                </h3>
+                <p className="text-sm text-[#64748b] mt-2 leading-relaxed">
+                  בהתבסס על דוחות קודמים, ניתן להעריך החזר צפוי לשנה הנוכחית
+                  (המספר להמחשה בלבד).
+                </p>
+                <p className="text-2xl font-extrabold text-[#006D4E] mt-4 tabular-nums">
+                  {Math.max(
+                    0,
+                    Math.round(cumulativeOnPage * 0.22)
+                  ).toLocaleString("he-IL")}{" "}
+                  ₪
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="rounded-xl bg-white border border-[#e8eaf2] p-6 shadow-sm relative overflow-hidden">
+            <div className="absolute -bottom-4 -left-4 opacity-[0.07] text-8xl font-serif select-none pointer-events-none">
+              📄
+            </div>
+            <h3 className="font-extrabold text-[#131b2e] relative">
+              זקוק לעזרה עם מסמכי העבר?
+            </h3>
+            <p className="text-sm text-[#64748b] mt-3 leading-relaxed relative">
+              הצוות שלנו מלווה אותך בהעלאה, בדיקה והבנת הדוח. נשמח לעזור בכל
+              שאלה.
+            </p>
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new CustomEvent("dashboard:openHelp"))}
+              className="mt-4 text-sm font-bold text-[#006D4E] hover:text-[#00A86B] inline-flex items-center gap-1 relative"
+            >
+              צור קשר עם נציג
+              <span aria-hidden>←</span>
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Email Modal */}

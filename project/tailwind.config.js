@@ -13,6 +13,12 @@ export default {
         muted: "hsl(var(--muted))",
         "muted-foreground": "hsl(var(--muted-foreground))",
         border: "hsl(var(--border))",
+        brand: {
+          forest: "#006D4E",
+          emerald: "#00A86B",
+          lavender: "#E6E9FF",
+          navy: "#131b2e",
+        },
         primary: {
           50: '#EFF6FF',
           100: '#DBEAFE',
@@ -45,7 +51,8 @@ export default {
         },
       },
       fontFamily: {
-        heebo: ['Heebo', 'sans-serif'],
+        heebo: ['Heebo', 'Assistant', 'sans-serif'],
+        sans: ['Assistant', 'Heebo', 'system-ui', 'sans-serif'],
       },
     },
   },

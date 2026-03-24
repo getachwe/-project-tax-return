@@ -23,7 +23,7 @@ export const GoogleCallback: React.FC = () => {
         const existingToken = localStorage.getItem("authToken");
         if (existingToken) {
           window.dispatchEvent(new CustomEvent("auth:loggedIn"));
-          navigate("/", { replace: true });
+          navigate("/incomes", { replace: true });
           return;
         }
 
@@ -69,7 +69,7 @@ export const GoogleCallback: React.FC = () => {
               if (accessToken) {
                 localStorage.setItem("authToken", accessToken);
                 window.dispatchEvent(new CustomEvent("auth:loggedIn"));
-                navigate("/", { replace: true });
+                navigate("/incomes", { replace: true });
                 return;
               }
             }
@@ -87,7 +87,7 @@ export const GoogleCallback: React.FC = () => {
             if (accessToken) {
               localStorage.setItem("authToken", accessToken);
               window.dispatchEvent(new CustomEvent("auth:loggedIn"));
-              navigate("/", { replace: true });
+              navigate("/incomes", { replace: true });
               return;
             }
           }
@@ -184,8 +184,7 @@ export const GoogleCallback: React.FC = () => {
         // Dispatch login event
         window.dispatchEvent(new CustomEvent("auth:loggedIn"));
 
-        // Redirect to main app immediately
-        navigate("/", { replace: true });
+        navigate("/incomes", { replace: true });
       } catch (err) {
         console.error("Google callback error:", err);
         setStatus("error");

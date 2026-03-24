@@ -1,25 +1,46 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Sidebar } from "./Sidebar";
 import { Header } from "../Header";
 import { useI18n } from "../../i18n/useI18n";
+import { useLocation } from "react-router-dom";
 
 export const DashboardLayout: React.FC<{
   children: React.ReactNode;
 }> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { t } = useI18n();
+  const location = useLocation();
+
+  const isFullWidthPage = useMemo(() => {
+    const p = location.pathname || "";
+    return (
+      p === "/incomes" ||
+      p === "/" ||
+      p === "/results" ||
+      p === "/history" ||
+      p === "/assistant" ||
+      p === "/settings" ||
+      p === "/profile"
+    );
+  }, [location.pathname]);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-[#f4f6fa]">
       {/* Top bar */}
       <div className="sticky top-0 z-40">
-        <Header />
+        <Header variant="dashboard" />
       </div>
 
-      <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-4">
-        <div className="flex gap-4">
+      <div
+        className={[
+          isFullWidthPage ? "max-w-none" : "max-w-6xl mx-auto",
+          "w-full px-4 sm:px-6 lg:px-8 py-4",
+        ].join(" ")}
+      >
+        {/* ב־dir=rtl על html, flex-row שם את הילד הראשון (Sidebar) בצד ימין */}
+        <div className="flex flex-row gap-4">
           {/* Desktop sidebar */}
-          <div className="hidden lg:block lg:sticky lg:top-[76px] lg:h-[calc(100vh-76px-16px)] rounded-3xl overflow-hidden shadow-sm">
+          <div className="hidden lg:block lg:sticky lg:top-[57px] lg:h-[calc(100vh-57px-16px)] rounded-2xl overflow-hidden shadow-md border border-[#d8dcf0]/60">
             <Sidebar />
           </div>
 
@@ -30,7 +51,7 @@ export const DashboardLayout: React.FC<{
                 className="absolute inset-0 bg-black/30"
                 onClick={() => setSidebarOpen(false)}
               />
-              <div className="absolute left-0 top-0 h-full w-80 bg-card shadow-2xl border-r border-border">
+              <div className="absolute right-0 top-0 h-full w-[280px] max-w-[85vw] bg-[#E6E9FF] shadow-2xl border-l border-[#d8dcf0]">
                 <Sidebar onNavigate={() => setSidebarOpen(false)} />
               </div>
             </div>

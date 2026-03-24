@@ -1,7 +1,10 @@
-import React, { useMemo } from "react";
-import { Dialog } from "@headlessui/react";
-import { AlertCircle } from "lucide-react";
-import { useTaxCalculator } from "../context/TaxCalculatorContext";
+import React, { useLayoutEffect, useMemo, useState } from "react";
+import {
+  useTaxCalculator,
+  isTaxDataFromUpload,
+} from "../context/TaxCalculatorContext";
+import { validateRequiredTaxCalculationFields } from "../utils/taxFormValidation";
+import { scrollToTaxFormErrors } from "../utils/scrollToTaxFormErrors";
 import type { TaxData } from "../context/TaxCalculatorContext";
 import {
   FIELD_LABELS,
@@ -11,6 +14,7 @@ import {
   EMPLOYMENT_OPTIONS,
 } from "../constants/fields";
 import { DynamicFormField } from "./forms/DynamicForm";
+import { TAX_FORM_FIELD_SCROLL_ORDER } from "../constants/taxFormFieldOrder";
 
 const TOOLTIP_KEYS = new Set([
   "income",
@@ -81,7 +85,8 @@ export const ManualForm: React.FC = () => {
     newImmigrant: !!taxData.newImmigrant,
     livingInPeriphery: !!taxData.livingInPeriphery,
   });
-  const [showSubmitError, setShowSubmitError] = React.useState(false);
+  const [submitAttempted, setSubmitAttempted] = useState(false);
+  const [errorScrollNonce, setErrorScrollNonce] = useState(0);
 
   // סידור השדות לפי נושאים
   const fieldSections = useMemo(
@@ -169,7 +174,7 @@ export const ManualForm: React.FC = () => {
   const values: Record<string, string | number | undefined> = {
     ...Object.fromEntries(
       Object.entries(taxData)
-        .filter(([key]) => key !== "hasFormData")
+        .filter(([key]) => key !== "hasFormData" && key !== "dataSource")
         .map(([key, value]) => [key, value as string | number | undefined])
     ),
     ...Object.fromEntries(
@@ -178,7 +183,7 @@ export const ManualForm: React.FC = () => {
   };
 
   const handleChange = (id: string, value: string | number | boolean) => {
-    setShowSubmitError(false);
+    setSubmitAttempted(false);
     if (id in extra) {
       setExtra((prev) => ({ ...prev, [id]: value }));
     } else {
@@ -194,8 +199,9 @@ export const ManualForm: React.FC = () => {
     console.log("extra:", extra);
 
     if (!isFormValid) {
-      console.log("Form not valid, showing error");
-      setShowSubmitError(true);
+      console.log("Form not valid, showing field errors");
+      setSubmitAttempted(true);
+      setErrorScrollNonce((n) => n + 1);
       return;
     }
 
@@ -218,81 +224,81 @@ export const ManualForm: React.FC = () => {
       ...finalFromForm,
       ...extra,
     });
+    const source =
+      taxData.dataSource ??
+      (taxData.hasFormData ? ("upload" as const) : ("manual" as const));
     setTaxData({
       ...(taxData as unknown as TaxData),
       ...finalFromForm,
       ...extra,
+      dataSource: source,
+      hasFormData: source === "upload",
     } as TaxData);
     console.log("🚀 About to call goToNextStep from ManualForm");
     goToNextStep();
     console.log("✅ goToNextStep called from ManualForm");
   };
 
-  // Simple error simulation: required fields must not be empty
-  const errors: Record<string, string> = {};
   const valuesRecord = values as Record<string, unknown>;
-  fields.forEach((f) => {
-    if (f.required && !valuesRecord[f.id]) {
-      errors[f.id] = "שדה חובה";
-    }
-  });
-
+  const errors = validateRequiredTaxCalculationFields(valuesRecord);
   const isFormValid = Object.keys(errors).length === 0;
 
-  // Find missing required fields for modal
-  const missingFields = fields.filter((f) => f.required && !valuesRecord[f.id]);
+  useLayoutEffect(() => {
+    if (errorScrollNonce === 0) return;
+    const errs = validateRequiredTaxCalculationFields(
+      valuesRecord as Record<string, unknown>
+    );
+    scrollToTaxFormErrors({
+      summaryId: "manual-form-validation-summary",
+      fieldOrder: TAX_FORM_FIELD_SCROLL_ORDER,
+      errorFieldIds: Object.keys(errs),
+    });
+    // גלילה רק כשמגדילים errorScrollNonce (ניסיון שליחה שנכשל)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [errorScrollNonce]);
+
+  const inputClass = (key: string) =>
+    [
+      "w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-800",
+      submitAttempted && errors[key] ? "border-red-500" : "border-gray-300",
+    ].join(" ");
 
   return (
     <>
-      {/* Modal for submit error */}
-      <Dialog
-        open={showSubmitError && !isFormValid}
-        onClose={() => setShowSubmitError(false)}
-        className="relative z-50"
-      >
-        <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
-        <div className="fixed inset-0 flex items-center justify-center p-4">
-          <Dialog.Panel className="w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl border border-gray-100">
-            <Dialog.Title className="text-xl font-bold mb-4 text-center text-red-700 flex flex-col items-center gap-2">
-              <AlertCircle className="w-8 h-8 text-red-500 mb-1" />
-              לא ניתן להמשיך לשלב הבא
-            </Dialog.Title>
-            <div className="text-gray-700 text-center mb-4">
-              יש למלא את כל השדות החיוניים לפני שניתן להמשיך. שדות חובה מסומנים
-              באדום.
-            </div>
-            <ul className="mb-4 text-right">
-              {missingFields.map((f) => (
-                <li
-                  key={f.id}
-                  className="flex items-center gap-2 text-red-600 mb-1"
-                >
-                  <AlertCircle className="w-4 h-4 text-red-400" />
-                  <span className="font-medium">{f.label}</span>
-                </li>
-              ))}
-            </ul>
-            <button
-              className="btn-primary w-full mt-2"
-              onClick={() => setShowSubmitError(false)}
-            >
-              סגור
-            </button>
-          </Dialog.Panel>
-        </div>
-      </Dialog>
-      {/* End Modal */}
-      <div className="space-y-6">
-        <div>
-          <h2 className="text-2xl font-bold text-blue-700 mb-2">
+      <div className="space-y-6" dir="rtl">
+        <div className="text-right mt-2">
+          <h2 className="text-xl sm:text-2xl font-extrabold text-[#1e40af] mb-2">
             השלמת נתונים
           </h2>
-          <p className="text-gray-600">
-            {taxData.hasFormData
+          <p className="text-[#64748b] text-sm sm:text-base leading-relaxed max-w-2xl mr-0 ml-auto">
+            {isTaxDataFromUpload(taxData)
               ? "הנתונים הבאים חולצו מהטופס שהעלית. אנא בדוק ותקן במידת הצורך."
               : "אנא הזן את הנתונים הבאים כדי שנוכל לחשב את החזר המס האפשרי שלך."}
           </p>
         </div>
+        {submitAttempted && !isFormValid && (
+          <div
+            id="manual-form-validation-summary"
+            className="rounded-lg border-2 border-red-300 bg-red-50 px-4 py-4 text-sm text-red-900 text-right shadow-sm scroll-mt-20"
+            role="alert"
+            aria-live="polite"
+          >
+            <p className="font-bold mb-2">
+              לא ניתן להמשיך — חסרים נתונים חיוניים לחישוב המס:
+            </p>
+            <ul className="list-disc list-inside space-y-1 mr-1 text-red-800">
+              {fields
+                .filter((f) => errors[f.id])
+                .map((f) => (
+                  <li key={f.id}>{f.label}</li>
+                ))}
+            </ul>
+            <p className="mt-3 text-red-800/90">
+              הדף יגלול אוטומטית לשדה הראשון שדורש השלמה. גם מתחת לכל שדה מופיעה
+              הערה באדום.
+            </p>
+          </div>
+        )}
         <div className="space-y-10">
           {/* נתונים עיקריים לחישוב מס */}
           <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
@@ -306,6 +312,7 @@ export const ManualForm: React.FC = () => {
                 return (
                   <div
                     key={key}
+                    data-tax-field={key}
                     className={`space-y-2 ${
                       [
                         "employeeId",
@@ -353,12 +360,16 @@ export const ManualForm: React.FC = () => {
                             : v
                         );
                       }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-800"
+                      className={inputClass(key)}
                       required={field.required}
                       min={field.min}
                       max={field.max}
                       dir={field.type === "number" ? "rtl" : undefined}
+                      aria-invalid={submitAttempted && !!errors[key]}
                     />
+                    {submitAttempted && errors[key] && (
+                      <p className="text-sm text-red-600 mt-1">{errors[key]}</p>
+                    )}
                   </div>
                 );
               })}
@@ -377,6 +388,7 @@ export const ManualForm: React.FC = () => {
                 return (
                   <div
                     key={key}
+                    data-tax-field={key}
                     className={`space-y-2 ${
                       [
                         "employeeId",
@@ -408,8 +420,9 @@ export const ManualForm: React.FC = () => {
                           (values as Record<string, string | number>)[key] ?? ""
                         }
                         onChange={(e) => handleChange(key, e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-800"
+                        className={inputClass(key)}
                         required={field.required}
+                        aria-invalid={submitAttempted && !!errors[key]}
                       >
                         <option value="">בחר...</option>
                         {field.options?.map((option) => (
@@ -441,12 +454,16 @@ export const ManualForm: React.FC = () => {
                               : v
                           );
                         }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-800"
+                        className={inputClass(key)}
                         required={field.required}
                         min={field.min}
                         max={field.max}
                         dir={field.type === "number" ? "rtl" : undefined}
+                        aria-invalid={submitAttempted && !!errors[key]}
                       />
+                    )}
+                    {submitAttempted && errors[key] && (
+                      <p className="text-sm text-red-600 mt-1">{errors[key]}</p>
                     )}
                   </div>
                 );
@@ -466,6 +483,7 @@ export const ManualForm: React.FC = () => {
                 return (
                   <div
                     key={key}
+                    data-tax-field={key}
                     className={`space-y-2 ${
                       [
                         "employeeId",
@@ -497,8 +515,9 @@ export const ManualForm: React.FC = () => {
                           (values as Record<string, string | number>)[key] ?? ""
                         }
                         onChange={(e) => handleChange(key, e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-800"
+                        className={inputClass(key)}
                         required={field.required}
+                        aria-invalid={submitAttempted && !!errors[key]}
                       >
                         <option value="">בחר...</option>
                         {field.options?.map((option) => (
@@ -530,12 +549,16 @@ export const ManualForm: React.FC = () => {
                               : v
                           );
                         }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-800"
+                        className={inputClass(key)}
                         required={field.required}
                         min={field.min}
                         max={field.max}
                         dir={field.type === "number" ? "rtl" : undefined}
+                        aria-invalid={submitAttempted && !!errors[key]}
                       />
+                    )}
+                    {submitAttempted && errors[key] && (
+                      <p className="text-sm text-red-600 mt-1">{errors[key]}</p>
                     )}
                   </div>
                 );
@@ -555,6 +578,7 @@ export const ManualForm: React.FC = () => {
                 return (
                   <div
                     key={key}
+                    data-tax-field={key}
                     className={`space-y-2 ${
                       [
                         "employeeId",
@@ -602,12 +626,16 @@ export const ManualForm: React.FC = () => {
                             : v
                         );
                       }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-800"
+                      className={inputClass(key)}
                       required={field.required}
                       min={field.min}
                       max={field.max}
                       dir={field.type === "number" ? "rtl" : undefined}
+                      aria-invalid={submitAttempted && !!errors[key]}
                     />
+                    {submitAttempted && errors[key] && (
+                      <p className="text-sm text-red-600 mt-1">{errors[key]}</p>
+                    )}
                   </div>
                 );
               })}
@@ -624,6 +652,7 @@ export const ManualForm: React.FC = () => {
                 return (
                   <div
                     key={key}
+                    data-tax-field={key}
                     className={`space-y-2 ${
                       [
                         "employeeId",
@@ -671,12 +700,16 @@ export const ManualForm: React.FC = () => {
                             : v
                         );
                       }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-800"
+                      className={inputClass(key)}
                       required={field.required}
                       min={field.min}
                       max={field.max}
                       dir={field.type === "number" ? "rtl" : undefined}
+                      aria-invalid={submitAttempted && !!errors[key]}
                     />
+                    {submitAttempted && errors[key] && (
+                      <p className="text-sm text-red-600 mt-1">{errors[key]}</p>
+                    )}
                   </div>
                 );
               })}

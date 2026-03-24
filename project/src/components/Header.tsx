@@ -1,28 +1,42 @@
 import React, { useEffect, useState } from "react";
-import { Calculator, ChevronDown, History, LogOut, User } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import {
+  Bell,
+  ChevronDown,
+  History,
+  LogOut,
+  Settings,
+  User,
+} from "lucide-react";
+import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { Dialog } from "@headlessui/react";
 import { AuthPanel } from "./auth/AuthPanel";
 import { useI18n } from "../i18n/useI18n";
+import { BrandLockup } from "./ui/BrandMark";
 
-export const Header: React.FC = () => {
+export type HeaderProps = { variant?: "marketing" | "dashboard" };
+
+export const Header: React.FC<HeaderProps> = ({ variant = "marketing" }) => {
   const { t } = useI18n();
+  const { pathname } = useLocation();
   const [openDialog, setOpenDialog] = useState<
     null | "help" | "about" | "auth"
   >(null);
   const [loginToast, setLoginToast] = useState<string | null>(null);
+
   useEffect(() => {
-    // Handle Supabase redirect params from email links
+    const onHelp = () => setOpenDialog("help");
+    window.addEventListener("dashboard:openHelp", onHelp);
+    return () => window.removeEventListener("dashboard:openHelp", onHelp);
+  }, []);
+
+  useEffect(() => {
     try {
       const params = new URLSearchParams(location.hash.replace(/^#/, ""));
       const access = params.get("access_token");
       const type = params.get("type");
       if (access) {
-        // Save session token and treat as logged in for confirmation/magic links
         localStorage.setItem("authToken", access);
-        // notify listeners (Header AuthStatus listens to storage)
         window.dispatchEvent(new StorageEvent("storage"));
-        // show small toast
         try {
           const payload = JSON.parse(
             atob(
@@ -37,17 +51,15 @@ export const Header: React.FC = () => {
         } catch {
           // ignore jwt parse errors
         }
-        // For password recovery keep dialog open; otherwise close
         if (type === "recovery") {
           setOpenDialog("auth");
         } else {
           setOpenDialog(null);
         }
-        // Clean the hash from URL
         history.replaceState(null, "", location.pathname + location.search);
       }
     } catch {
-      // ignore parsing errors for URL hash params
+      // ignore
     }
 
     const close = () => setOpenDialog(null);
@@ -59,11 +71,9 @@ export const Header: React.FC = () => {
     };
   }, []);
 
-  // If dialog opened while already logged-in, close it immediately
   useEffect(() => {
     if (openDialog === "auth") {
       try {
-        // If there is a valid token, auto-close the auth dialog
         const token = localStorage.getItem("authToken");
         if (token) setOpenDialog(null);
       } catch {
@@ -71,56 +81,88 @@ export const Header: React.FC = () => {
       }
     }
   }, [openDialog]);
+
+  const navClass = (path: string) => {
+    const on =
+      path === "/"
+        ? pathname === "/" || pathname === "/results"
+        : pathname === path;
+    return [
+      "text-sm font-medium pb-1 border-b-2 transition-colors",
+      on
+        ? "text-[#006D4E] border-[#00A86B]"
+        : "text-[#64748b] border-transparent hover:text-[#131b2e]",
+    ].join(" ");
+  };
+
   return (
-    <header className="bg-card/90 backdrop-blur border-b border-border">
+    <header
+      className={
+        variant === "dashboard"
+          ? "bg-white border-b border-[#e8eaf2] shadow-sm"
+          : "bg-white/80 backdrop-blur border-b border-border"
+      }
+      dir="rtl"
+    >
       {loginToast && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-4 py-2 rounded-full shadow z-[60]">
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 bg-[#006D4E] text-white px-4 py-2 rounded-full shadow-lg z-[60] text-sm">
           {loginToast}
         </div>
       )}
-      <div className="max-w-7xl mx-auto py-3 px-4 sm:px-8 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-emerald-400 to-sky-500 flex items-center justify-center shadow-md">
-              <Calculator className="h-5 w-5 text-white" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-semibold text-foreground leading-none">
+      <div
+        className={
+          variant === "dashboard"
+            ? "max-w-[1920px] mx-auto h-14 px-4 sm:px-6 flex items-center justify-between gap-4"
+            : "max-w-7xl mx-auto py-3 px-4 sm:px-8 flex items-center justify-between"
+        }
+      >
+        {variant === "dashboard" ? (
+          <>
+            <div className="flex items-center gap-8 min-w-0">
+              <span className="text-lg font-extrabold text-[#006D4E] shrink-0">
                 {t("app.title")}
               </span>
-              <span className="text-xs text-muted-foreground leading-none mt-0.5">
-                {t("app.subtitle")}
-              </span>
+              <nav className="hidden md:flex items-center gap-8">
+                <NavLink to="/" end className={() => navClass("/")}>
+                  {t("header.dashboard")}
+                </NavLink>
+                <NavLink to="/incomes" className={() => navClass("/incomes")}>
+                  {t("nav.incomes")}
+                </NavLink>
+                <NavLink to="/history" className={() => navClass("/history")}>
+                  {t("nav.history")}
+                </NavLink>
+              </nav>
             </div>
-          </div>
-        </div>
-        <nav className="hidden md:flex items-center gap-6 text-sm">
-          <button
-            type="button"
-            onClick={() => (window.location.href = "/")}
-            className="px-3 py-1.5 rounded-full bg-foreground text-background font-medium shadow-sm"
-          >
-            {t("header.dashboard")}
-          </button>
-          <button
-            type="button"
-            onClick={() => setOpenDialog("help")}
-            className="text-muted-foreground hover:text-foreground transition-colors"
-          >
-            {t("header.help")}
-          </button>
-          <button
-            type="button"
-            onClick={() => setOpenDialog("about")}
-            className="text-muted-foreground hover:text-foreground transition-colors"
-          >
-            {t("header.about")}
-          </button>
-          <AuthStatus />
-        </nav>
-        {/* Mobile: only auth button + menu icons נשארים דרך AuthStatus */}
+            <DashboardUserBar />
+          </>
+        ) : (
+          <>
+            <BrandLockup
+              size="sm"
+              title={t("app.title")}
+              subtitle={t("app.subtitle")}
+            />
+            <nav className="hidden md:flex items-center gap-6 text-sm">
+              <button
+                type="button"
+                onClick={() => setOpenDialog("help")}
+                className="text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {t("header.help")}
+              </button>
+              <button
+                type="button"
+                onClick={() => setOpenDialog("about")}
+                className="text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {t("header.about")}
+              </button>
+            </nav>
+          </>
+        )}
       </div>
-      {/* Dialogs */}
+
       <Dialog
         open={openDialog === "help"}
         onClose={() => setOpenDialog(null)}
@@ -144,8 +186,8 @@ export const Header: React.FC = () => {
               </p>
               <p>בכל שלב ניתן לחזור אחורה, לעדכן נתונים או להתחיל חישוב חדש.</p>
               <p>
-                אם נתקלתם בבעיה, ניתן לפנות אלינו דרך טופס "צור קשר" בתחתית
-                העמוד.
+                אם נתקלתם בבעיה, ניתן לפנות אלינו דרך טופס &quot;צור קשר&quot;
+                בתחתית העמוד.
               </p>
             </div>
             <div className="flex justify-center">
@@ -183,7 +225,7 @@ export const Header: React.FC = () => {
                 החישוב מבוסס על כללי רשות המיסים בישראל, אך אינו מהווה ייעוץ מס
                 אישי.
               </p>
-              <p>לשאלות נוספות ניתן לפנות אלינו דרך טופס "צור קשר".</p>
+              <p>לשאלות נוספות ניתן לפנות אלינו דרך טופס &quot;צור קשר&quot;.</p>
             </div>
             <div className="flex justify-center">
               <button
@@ -234,11 +276,12 @@ export const Header: React.FC = () => {
   );
 };
 
-const AuthStatus: React.FC = () => {
+const DashboardUserBar: React.FC = () => {
   const navigate = useNavigate();
   const [token, setToken] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [open, setOpen] = useState(false);
+  const [ping, setPing] = useState(false);
 
   function getEmailFromToken(t: string | null): string {
     try {
@@ -285,55 +328,88 @@ const AuthStatus: React.FC = () => {
     };
   }, []);
 
-  // כאשר אין טוקן לא מציגים כלום (הכניסה מתבצעת בעמוד הראשי)
   if (!token) return null;
 
   return (
-    <div className="relative">
+    <div className="flex items-center gap-1 sm:gap-2">
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted text-foreground hover:bg-muted/80 transition"
-        title={email}
+        className="relative p-2 rounded-full text-[#64748b] hover:bg-[#E6E9FF]/80 transition-colors"
+        aria-label="התראות"
+        onClick={() => {
+          setPing(true);
+          setTimeout(() => setPing(false), 2000);
+        }}
       >
-        <User className="h-5 w-5 text-blue-600" />
-        <span className="text-sm">החשבון שלי</span>
-        <span className="text-sm max-w-[12rem] truncate hidden sm:inline">
-          {email}
-        </span>
-        <ChevronDown className="w-4 h-4 text-muted-foreground" />
+        <Bell className="h-5 w-5" />
+        {ping && (
+          <span className="absolute top-1.5 left-1.5 h-2 w-2 rounded-full bg-[#00A86B]" />
+        )}
       </button>
-      {open && (
-        <div className="absolute left-0 mt-2 w-52 bg-card border border-border rounded-lg shadow-lg overflow-hidden z-50">
-          <div className="px-4 py-2 border-b border-border">
-            <p className="text-xs text-muted-foreground">מחובר כ:</p>
-            <p className="text-sm font-medium text-foreground truncate">
-              {email}
-            </p>
+      <button
+        type="button"
+        onClick={() => navigate("/settings")}
+        className="p-2 rounded-full text-[#64748b] hover:bg-[#E6E9FF]/80 transition-colors"
+        aria-label="הגדרות"
+      >
+        <Settings className="h-5 w-5" />
+      </button>
+      <div className="relative mr-1">
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="flex items-center gap-1 p-1 rounded-full border border-[#e8eaf2] bg-[#faf8f3] hover:bg-[#f3eee6] transition-colors"
+          title={email}
+          aria-expanded={open}
+        >
+          <div className="h-9 w-9 rounded-full bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center">
+            <User className="h-4 w-4 text-amber-800/80" />
           </div>
-          <button
-            className="w-full text-right px-4 py-3 text-sm text-foreground hover:bg-muted flex items-center gap-3"
-            onClick={() => {
-              setOpen(false);
-              navigate("/history");
-            }}
-          >
-            <History className="h-4 w-4 text-blue-600" />
-            היסטוריה
-          </button>
-          <button
-            className="w-full text-right px-4 py-3 text-sm text-foreground hover:bg-muted flex items-center gap-3"
-            onClick={() => {
-              localStorage.removeItem("authToken");
-              setOpen(false);
-              window.dispatchEvent(new StorageEvent("storage"));
-            }}
-          >
-            <LogOut className="h-4 w-4 text-red-600" />
-            התנתק
-          </button>
-        </div>
-      )}
+          <ChevronDown className="w-4 h-4 text-[#64748b] hidden sm:block pr-1" />
+        </button>
+        {open && (
+          <div className="absolute left-0 mt-2 w-56 bg-white border border-[#e8eaf2] rounded-xl shadow-xl overflow-hidden z-50">
+            <div className="px-4 py-3 border-b border-[#e8eaf2] text-right">
+              <p className="text-xs text-muted-foreground">מחובר כ:</p>
+              <p className="text-sm font-medium text-foreground truncate">
+                {email}
+              </p>
+            </div>
+            <button
+              className="w-full text-right px-4 py-3 text-sm text-foreground hover:bg-[#E6E9FF]/50 flex items-center gap-3"
+              onClick={() => {
+                setOpen(false);
+                navigate("/profile");
+              }}
+            >
+              <User className="h-4 w-4 text-[#006D4E]" />
+              פרופיל
+            </button>
+            <button
+              className="w-full text-right px-4 py-3 text-sm text-foreground hover:bg-[#E6E9FF]/50 flex items-center gap-3"
+              onClick={() => {
+                setOpen(false);
+                navigate("/history");
+              }}
+            >
+              <History className="h-4 w-4 text-[#006D4E]" />
+              היסטוריה
+            </button>
+            <button
+              className="w-full text-right px-4 py-3 text-sm text-red-600 hover:bg-red-50 flex items-center gap-3"
+              onClick={() => {
+                localStorage.removeItem("authToken");
+                localStorage.removeItem("lastActivity");
+                setOpen(false);
+                window.dispatchEvent(new CustomEvent("auth:loggedOut"));
+              }}
+            >
+              <LogOut className="h-4 w-4" />
+              התנתק
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

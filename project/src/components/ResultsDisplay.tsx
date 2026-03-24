@@ -1,26 +1,31 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useTaxCalculator } from "../context/TaxCalculatorContext";
+import {
+  useTaxCalculator,
+  isTaxDataFromUpload,
+  type TaxData,
+} from "../context/TaxCalculatorContext";
+import { hasRequiredTaxCalculationData } from "../utils/taxFormValidation";
 import { Dialog } from "@headlessui/react";
 import {
   CheckCircle,
-  Sparkles,
-  Calculator,
-  Coins,
-  TrendingUp,
-  CreditCard,
-  Receipt,
-  FileText,
-  Calculator as CalcIcon,
-  ShieldCheck,
-  Lock,
+  Star,
+  Wallet,
+  Banknote,
+  Send,
+  Loader2,
 } from "lucide-react";
 
 import { DashboardCard } from "./ui/DashboardCard";
 import { StatusBadge } from "./ui/StatusBadge";
 import { Timeline } from "./ui/Timeline";
-import { ActivityList } from "./ui/ActivityList";
 import { Skeleton } from "./ui/Skeleton";
+import { Tooltip } from "./Tooltip";
+import { BrandLogoIcon } from "./ui/BrandMark";
+
+/** הסבר ליד תג רמת הסיכון — תואם ללוגיקה ב־backend/ai-agents/RiskAgent.js */
+const RISK_LEVEL_TOOLTIP =
+  "רמת הסיכון נקבעת אוטומטית לפי בדיקות המערכת: תקינות הנתונים (שגיאות או אזהרות), וסבירות יחס בין סכום ההחזר המחושב להכנסה המדווחת.\n\nזו אינה החלטת רשות המיסים ואינה מחליפה ייעוץ מס — מומלץ לוודא את הנתונים מול טופס 106.";
 
 // בסיס ה-API - אותו לוגיקה כמו ב-utils/api.ts
 const isLocalHost =
@@ -34,15 +39,33 @@ const API_BASE =
 export const ResultsDisplay: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { taxData, goToPreviousStep, resetCalculator } = useTaxCalculator();
+  const { taxData, goToPreviousStep, resetCalculator, setCalculatorStep } =
+    useTaxCalculator();
 
   console.log("ResultsDisplay mounted - location.state:", location.state);
   console.log("ResultsDisplay mounted - taxData:", taxData);
 
   // Get current tax data from location.state or context
-  const currentTaxData = React.useMemo(() => {
+  const currentTaxData = useMemo(() => {
     return location.state?.taxData || taxData;
   }, [location.state?.taxData, taxData]);
+
+  /** מניעת הרצה מחודשת של חישוב בגלל עדכוני taxData אחרי מעט מחשבון — גורם ל״ריענון״ ויזואלי */
+  const calculationEffectKey = useMemo(() => {
+    const s = location.state as {
+      fromHistory?: boolean;
+      fromCalculator?: boolean;
+      taxData?: TaxData;
+      result?: unknown;
+    } | null;
+    if (s?.fromHistory && s?.result) {
+      return `hist:${location.key}`;
+    }
+    if (s?.fromCalculator && s?.taxData != null) {
+      return `calc:${location.key}`;
+    }
+    return `dash:${location.pathname}:${JSON.stringify(taxData)}`;
+  }, [location.key, location.state, location.pathname, taxData]);
   const [result, setResult] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -129,25 +152,24 @@ export const ResultsDisplay: React.FC = () => {
     console.log("taxPaid:", currentTaxData?.taxPaid);
     console.log("taxYear:", currentTaxData?.taxYear);
 
+    const taxPayload = (currentTaxData || {}) as Record<string, unknown>;
     const hasMinimalData =
-      !!currentTaxData &&
-      !!currentTaxData.income &&
-      !!currentTaxData.taxPaid &&
-      !!currentTaxData.taxYear;
+      !!currentTaxData && hasRequiredTaxCalculationData(taxPayload);
 
     if (!hasMinimalData) {
       console.log("❌ Missing required data:", {
         income: currentTaxData?.income,
         taxPaid: currentTaxData?.taxPaid,
         taxYear: currentTaxData?.taxYear,
+        maritalStatus: currentTaxData?.maritalStatus,
       });
-      // אם המשתמש פשוט נכנס לדשבורד בלי חישוב קודם – נציג מסך ברירת מחדל במקום שגיאה
       if (!fromCalculator && !fromHistory) {
         setNoInitialData(true);
+      } else if (fromCalculator) {
+        setCalculatorStep(2);
+        navigate("/incomes", { replace: true });
       } else {
-        setError(
-          "חסרים נתונים חיוניים לחישוב המס. אנא חזור לשלב הקודם ומלא את השדות הנדרשים."
-        );
+        setError("נתוני הדוח שמורים בהיסטוריה אינם מלאים.");
       }
       setLoading(false);
       return;
@@ -212,63 +234,43 @@ export const ResultsDisplay: React.FC = () => {
           setLoading(false);
         });
     });
-  }, [taxData, location.state, currentTaxData]);
+    // תלות ב-calculationEffectKey בלבד — לא ב-taxData גולמי אחרי מעבר מהמחשבון (מונע מסך טעינה כפול)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [calculationEffectKey, navigate, goToPreviousStep]);
 
   if (loading)
     return (
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        <div className="lg:col-span-8 space-y-4">
-          <DashboardCard title="Dashboard Overview" subtitle="Analysis">
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-              <div className="rounded-2xl border border-border bg-card/70 p-4">
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-8 w-36 mt-3" />
-                <Skeleton className="h-4 w-20 mt-2" />
-              </div>
-              <div className="rounded-2xl border border-slate-200 bg-white/70 p-4">
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-8 w-36 mt-3" />
-                <Skeleton className="h-4 w-20 mt-2" />
-              </div>
-              <div className="rounded-2xl border border-slate-200 bg-white/70 p-4">
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-8 w-36 mt-3" />
-                <Skeleton className="h-4 w-20 mt-2" />
-              </div>
+      <div className="w-full max-w-5xl mx-auto space-y-4 animate-pulse" dir="rtl">
+        <div className="rounded-xl border border-[#e8eaf2] bg-white h-40 shadow-sm" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="rounded-xl border border-[#e8eaf2] bg-white p-4 h-32 shadow-sm">
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-8 w-28 mt-4" />
             </div>
-          </DashboardCard>
-          <DashboardCard title="Claim Status Timeline">
-            <Skeleton className="h-4 w-40" />
-            <Skeleton className="h-4 w-56 mt-2" />
-            <Skeleton className="h-4 w-48 mt-2" />
-          </DashboardCard>
+          ))}
         </div>
-        <div className="lg:col-span-4 space-y-4">
-          <DashboardCard title="Quick History">
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full mt-2" />
-            <Skeleton className="h-10 w-full mt-2" />
-          </DashboardCard>
-          <DashboardCard title="Security Status">
-            <Skeleton className="h-12 w-full" />
-            <Skeleton className="h-12 w-full mt-2" />
-          </DashboardCard>
-        </div>
+        <div className="rounded-xl border border-[#e8eaf2] bg-white h-64 shadow-sm" />
       </div>
     );
   if (noInitialData)
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-center">
-        <h2 className="text-2xl font-semibold text-foreground mb-3">
+      <div
+        className="max-w-lg mx-auto text-center py-16 px-4 rounded-xl border border-[#e8eaf2] bg-white shadow-sm"
+        dir="rtl"
+      >
+        <BrandLogoIcon size="lg" className="mx-auto mb-6" />
+        <h2 className="text-2xl font-extrabold text-[#131b2e] mb-3">
           ברוך הבא לדשבורד ההחזר שלך
         </h2>
-        <p className="text-muted-foreground mb-6 max-w-md">
-          כדי לראות ניתוח, סימולציות והמלצות מותאמות, ראשית מלא את פרטי
-          ההכנסה או העלה טופס 106 במסך Incomes.
+        <p className="text-[#64748b] mb-8 leading-relaxed">
+          כדי לראות ניתוח והמלצות מותאמות, מלא פרטי הכנסה או העלה טופס 106
+          במסך העלאת מסמכים.
         </p>
         <button
+          type="button"
           onClick={() => navigate("/incomes")}
-          className="btn-primary px-6"
+          className="w-full sm:w-auto px-8 py-3 rounded-xl bg-[#00A86B] text-white font-bold hover:bg-[#00925d] transition-colors shadow-md"
         >
           התחל חישוב חדש
         </button>
@@ -276,13 +278,29 @@ export const ResultsDisplay: React.FC = () => {
     );
 
   if (error)
-    return <div className="error-text text-center text-lg">{error}</div>;
+    return (
+      <div
+        className="max-w-xl mx-auto text-center p-8 rounded-xl border border-red-200 bg-red-50 text-red-800"
+        dir="rtl"
+      >
+        <p className="text-lg font-medium">{error}</p>
+      </div>
+    );
   if (!result)
     return (
-      <div className="text-center text-muted-foreground p-8">
-        <p className="text-lg mb-4">אין נתונים להצגה</p>
-        <button onClick={() => navigate("/")} className="btn-primary">
-          חזרה לעמוד הבית
+      <div
+        className="max-w-md mx-auto text-center p-10 rounded-xl border border-[#e8eaf2] bg-white text-[#64748b]"
+        dir="rtl"
+      >
+        <p className="text-lg mb-6 text-[#131b2e] font-semibold">
+          אין נתונים להצגה
+        </p>
+        <button
+          type="button"
+          onClick={() => navigate("/")}
+          className="px-6 py-2.5 rounded-xl bg-[#006D4E] text-white font-semibold hover:bg-[#005a40]"
+        >
+          חזרה לדשבורד
         </button>
       </div>
     );
@@ -332,59 +350,43 @@ export const ResultsDisplay: React.FC = () => {
 
   const timelineItems = [
     {
-      title: "התחלנו לנתח",
-      date: String(currentTaxData.taxYear || ""),
-      description: "המערכת ניתחה את הנתונים שסיפקת",
+      title: isTaxDataFromUpload(currentTaxData as TaxData)
+        ? "העלאת מסמכים"
+        : "הזנת נתונים",
+      date: new Date().toLocaleDateString("he-IL"),
+      description: isTaxDataFromUpload(currentTaxData as TaxData)
+        ? "טופס 106 הועלה בהצלחה"
+        : "נתונים הוזנו ידנית",
       status: "done" as const,
     },
     {
-      title: "חישוב החזר",
-      date: loading ? "כעת" : "",
-      description: "חישוב החזר מס ונקודות זיכוי",
-      status: loading ? ("active" as const) : ("done" as const),
+      title: "בדיקה",
+      date: new Date().toLocaleDateString("he-IL"),
+      description: "ניתוח נתונים והפקת דוח",
+      status: "done" as const,
     },
     {
-      title: "מוכן להגשה",
+      title: "דוח מוכן",
       date: hasCompletedDelivery
-        ? pdfDownloadedAt || emailSentAt || ""
-        : "",
+        ? pdfDownloadedAt || emailSentAt || "הופק היום"
+        : "בתהליך",
       description: hasCompletedDelivery
-        ? "הדוח נשלח/הורד בהצלחה"
-        : "הדוח מוכן להורדה/שליחה",
+        ? "ניתן להגיש לרשות המיסים"
+        : "הדוח מוכן להורדה או שליחה במייל",
       status: hasCompletedDelivery ? ("done" as const) : ("pending" as const),
-    },
-  ];
-
-  const quickHistoryItems = [
-    {
-      title: "חישוב בוצע",
-      date: "היום",
-      statusLabel: "אושר",
-      statusVariant: "success" as const,
-      icon: "check" as const,
-    },
-    {
-      title: currentTaxData.hasFormData
-        ? "טופס 106 עובד"
-        : "נתונים הוזנו ידנית",
-      date: "היום",
-      statusLabel: "הושלם",
-      statusVariant: "info" as const,
-      icon: currentTaxData.hasFormData ? ("upload" as const) : ("file" as const),
     },
   ];
 
   const heroAmountAbs = Math.abs(refundNum);
   const heroIsRefund = refundNum >= 0;
-  const heroTitle = "סטטוס החזר המס שלך";
-  const heroStatus = hasCompletedDelivery
-    ? "הבקשה מוכנה להגשה"
-    : "הבקשה נמצאת בבדיקה";
-  const heroPrimaryCtaLabel = hasCompletedDelivery
-    ? "הגש בקשה להחזר"
-    : "המשך תהליך";
 
   const fmtIls = (n: number) => `${Math.round(n).toLocaleString("he-IL")} ₪`;
+
+  const creditTotalEst = Math.round(creditValueNum * creditPointsNum) || 0;
+  const additionalIncomeNum = Number(
+    (currentTaxData as { additionalIncome?: number }).additionalIncome ?? 0
+  );
+  const salaryEst = Math.max(0, incomeNum - additionalIncomeNum);
 
   const handleDownloadPdf = async () => {
     setDownloading(true);
@@ -444,303 +446,321 @@ export const ResultsDisplay: React.FC = () => {
   };
 
   return (
-    <div
-      dir="ltr"
-      className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-4"
-    >
-      {/* Secondary info (left side) */}
-      <div className="lg:col-span-4 lg:col-start-1 lg:row-start-1 lg:row-span-4 lg:w-60 lg:justify-self-start">
-        <div className="lg:sticky lg:top-[76px] lg:h-[calc(100vh-76px-16px)]">
-          <DashboardCard
-            title="מידע משני"
-            subtitle="היסטוריה ואבטחה"
-            className="rounded-3xl overflow-hidden shadow-sm bg-card/80 backdrop-blur h-full"
-          >
-            <div className="flex flex-col h-full">
-              <div className="flex-1 min-h-0 overflow-auto pr-1">
-                <details open>
-                  <summary className="cursor-pointer text-sm text-muted-foreground">
-                    היסטוריית בקשות
-                  </summary>
-                  <div className="mt-3">
-                    <ActivityList items={quickHistoryItems} />
-                  </div>
-                </details>
-
-                <details className="mt-4" open>
-                  <summary className="cursor-pointer text-sm text-muted-foreground">
-                    אבטחת מידע
-                  </summary>
-                  <div className="mt-3 space-y-3">
-                    <div className="rounded-xl border border-border bg-muted/10 p-4 flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center">
-                        <ShieldCheck className="h-5 w-5 text-emerald-700" />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-sm font-semibold text-foreground">
-                          הצפנה
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          TLS בתעבורה (פעיל)
-                        </div>
-                      </div>
-                      <StatusBadge variant="success">מאובטח</StatusBadge>
-                    </div>
-
-                    <div className="rounded-xl border border-border bg-muted/10 p-4 flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-xl bg-sky-50 border border-sky-200 flex items-center justify-center">
-                        <Lock className="h-5 w-5 text-sky-700" />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-sm font-semibold text-foreground">
-                          הגנת התחברות
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          Supabase Auth
-                        </div>
-                      </div>
-                      <StatusBadge variant="info">פעיל</StatusBadge>
-                    </div>
-                  </div>
-                </details>
-              </div>
-            </div>
-          </DashboardCard>
-        </div>
-      </div>
-
-      {/* Hero */}
-      <div className="lg:col-span-8 lg:col-start-5">
-        <DashboardCard
-          title={heroTitle}
-          subtitle={heroStatus}
-          rightSlot={
-            <StatusBadge variant={heroIsRefund ? "success" : "danger"}>
-              {heroIsRefund ? "החזר" : "חוב"}
-            </StatusBadge>
-          }
-        >
-          <div dir="rtl">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            <div className="min-w-0">
-              <div className="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground">
-                {fmtIls(heroAmountAbs)} {heroIsRefund ? "החזר מס" : "חוב למס הכנסה"}
-              </div>
-              <div className="mt-2 text-sm text-muted-foreground leading-relaxed">
-                מבוסס על הנתונים שהוזנו. ניתן להוריד דוח PDF או לשלוח למייל ולהמשיך את התהליך.
-              </div>
-            </div>
-          </div>
-          </div>
-        </DashboardCard>
-      </div>
-
-      {/* Progress */}
-      <div className="lg:col-span-8 lg:col-start-5">
-        <DashboardCard title="התקדמות בתהליך" subtitle="3 שלבים">
-          <div dir="rtl">
-            <Timeline items={timelineItems} />
-          </div>
-        </DashboardCard>
-      </div>
-
-      {/* Main content (right side in RTL) */}
-      <div className="lg:col-span-8 lg:col-start-5 space-y-4">
-        <div dir="rtl" className="space-y-4">
-        <DashboardCard
-          title="מידע מרכזי"
-          subtitle={`שנת מס ${currentTaxData.taxYear}`}
-          rightSlot={
-            <StatusBadge variant={heroIsRefund ? "success" : "danger"}>
-              {heroIsRefund ? "החזר צפוי" : "חוב צפוי"}
-            </StatusBadge>
-          }
-        >
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            <div className="rounded-xl border border-border bg-muted/20 p-4">
-              <div className="text-xs text-muted-foreground">הערכת החזר / חוב</div>
-              <div className="mt-2 text-2xl font-bold text-foreground">
+    <>
+      <div className="w-full max-w-5xl mx-auto space-y-6 pb-12" dir="rtl">
+        <section className="rounded-xl bg-white border border-[#e8eaf2] shadow-sm overflow-hidden flex flex-col md:flex-row">
+          <div className="w-1 bg-[#00A86B] shrink-0" />
+          <div className="flex-1 p-6 md:p-8 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+            <div className="space-y-3 text-right">
+              <StatusBadge
+                variant={heroIsRefund ? "success" : "danger"}
+                className="inline-flex items-center gap-1"
+              >
+                <CheckCircle className="h-3.5 w-3.5" />
+                {heroIsRefund ? "מאושר" : "בבדיקה"}
+              </StatusBadge>
+              <p className="text-sm text-[#64748b]">סכום החזר משוער</p>
+              <p className="text-4xl sm:text-5xl font-extrabold text-[#006D4E] tabular-nums">
                 {fmtIls(heroAmountAbs)}
-              </div>
-              <div className="mt-2">
-                <StatusBadge variant={heroIsRefund ? "success" : "danger"}>
-                  {heroIsRefund ? "החזר" : "חוב"}
-                </StatusBadge>
-              </div>
+              </p>
+              <p className="text-sm text-[#64748b] leading-relaxed max-w-md">
+                מבוסס על הנתונים שהוזנו. ניתן להוריד דוח PDF או לשלוח במייל.
+              </p>
             </div>
-
-            <div className="rounded-xl border border-border bg-muted/20 p-4">
-              <div className="text-xs text-muted-foreground">כמה הכנסות דווחו</div>
-              <div className="mt-2 text-2xl font-bold text-foreground">
-                {fmtIls(incomeNum)}
-              </div>
-              <div className="mt-2 text-xs text-muted-foreground">שנתי</div>
-            </div>
-
-            <div className="rounded-xl border border-border bg-muted/20 p-4">
-              <div className="text-xs text-muted-foreground">כמה מס שילמת השנה</div>
-              <div className="mt-2 text-2xl font-bold text-foreground">
-                {fmtIls(taxPaidNum)}
-              </div>
-              <div className="mt-2 text-xs text-muted-foreground">ניכויים</div>
+            <div className="flex flex-col gap-3 lg:items-end">
+              <p className="text-xs text-[#64748b]">
+                עודכן לאחרונה:{" "}
+                {new Date().toLocaleDateString("he-IL", {
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                })}
+              </p>
+              <button
+                type="button"
+                disabled={downloading}
+                onClick={handleDownloadPdf}
+                className="px-5 py-2.5 rounded-xl bg-[#E6E9FF] text-[#131b2e] font-semibold text-sm border border-[#d8dcf0] hover:bg-[#dce0fa] disabled:opacity-50 inline-flex items-center justify-center gap-2"
+              >
+                {downloading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    מוריד…
+                  </>
+                ) : (
+                  "הורדת דוח מפורט"
+                )}
+              </button>
             </div>
           </div>
+        </section>
 
-          <div className="mt-5 rounded-xl border border-border bg-muted/10 p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <div className="text-sm font-semibold text-foreground">
-                  אמינות הנתונים
-                </div>
-                <div className="text-xs text-muted-foreground truncate">
-                  {documentSource ? `מקור הנתונים: ${documentSource}` : " "}
-                </div>
-              </div>
-              {riskLevel && (
-                <StatusBadge variant={riskVariant as any}>
+        <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          <DashboardCard
+            title="סטטוס הבקשה"
+            contentClassName="p-4"
+            className="shadow-sm border-[#e8eaf2]"
+          >
+            <Timeline items={timelineItems} />
+          </DashboardCard>
+          <div className="rounded-xl border border-[#e8eaf2] bg-white p-5 shadow-sm">
+            <Star className="h-6 w-6 text-[#00A86B] mb-3" />
+            <p className="text-xs text-[#64748b]">נקודות זיכוי</p>
+            <p className="text-2xl font-extrabold text-[#131b2e] mt-1 tabular-nums">
+              {String(creditPointsNum)}
+            </p>
+          </div>
+          <div className="rounded-xl border border-[#e8eaf2] bg-white p-5 shadow-sm">
+            <Wallet className="h-6 w-6 text-[#00A86B] mb-3" />
+            <p className="text-xs text-[#64748b]">מס ששולם</p>
+            <p className="text-2xl font-extrabold text-[#006D4E] mt-1 tabular-nums">
+              {fmtIls(taxPaidNum)}
+            </p>
+          </div>
+          <div className="rounded-xl border border-[#e8eaf2] bg-white p-5 shadow-sm">
+            <Banknote className="h-6 w-6 text-[#00A86B] mb-3" />
+            <p className="text-xs text-[#64748b]">הכנסה שנתית</p>
+            <p className="text-2xl font-extrabold text-[#131b2e] mt-1 tabular-nums">
+              {fmtIls(incomeNum)}
+            </p>
+          </div>
+        </section>
+
+        {(documentSource || riskLevel) && (
+          <div className="rounded-xl border border-[#e8eaf2] bg-white p-4 shadow-sm flex flex-wrap items-center gap-4 justify-between">
+            <div className="text-sm text-[#64748b] min-w-0">
+              {documentSource && (
+                <span className="block truncate">
+                  מקור: {String(documentSource)}
+                </span>
+              )}
+            </div>
+            {riskLevel && (
+              <div className="flex items-center gap-1.5 shrink-0">
+                <StatusBadge
+                  variant={
+                    riskVariant as "success" | "warning" | "danger" | "neutral"
+                  }
+                >
                   {riskLevel === "low"
                     ? "סיכון נמוך"
                     : riskLevel === "medium"
-                    ? "סיכון בינוני"
-                    : "סיכון גבוה"}
+                      ? "סיכון בינוני"
+                      : "סיכון גבוה"}
                 </StatusBadge>
-              )}
-            </div>
-            <div className="mt-3 h-2 rounded-full bg-border overflow-hidden">
+                <Tooltip
+                  content={RISK_LEVEL_TOOLTIP}
+                  ariaLabel="מהי משמעות רמת הסיכון"
+                  iconClassName="w-4 h-4 text-[#64748b] hover:text-[#131b2e] cursor-help inline align-middle shrink-0"
+                />
+              </div>
+            )}
+            <div className="w-full sm:w-48 h-2 rounded-full bg-[#e8eaf2] overflow-hidden">
               <div
-                className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-sky-500 transition-all"
+                className="h-full rounded-full bg-gradient-to-l from-[#00A86B] to-[#006D4E]"
                 style={{ width: `${progressPct}%` }}
               />
             </div>
-            <div className="mt-2 text-xs text-muted-foreground">
-              {progressPct}% ביטחון
-            </div>
+            <span className="text-xs text-[#64748b]">{progressPct}% ביטחון</span>
           </div>
-        </DashboardCard>
+        )}
 
-        <DashboardCard title="מה זה אומר בפועל?" subtitle="הסבר קצר והמלצות">
-          {whyRefund && typeof whyRefund === "string" ? (
-            <div className="text-base text-foreground leading-relaxed">
-              {whyRefund}
-            </div>
-          ) : (
-            <div className="text-base text-muted-foreground leading-relaxed">
-              {explanationStr.split("\n")[0]}
-            </div>
-          )}
-
-          {Array.isArray(recommendations) && recommendations.length > 0 && (
-            <div className="mt-4">
-              <div className="text-sm font-semibold text-foreground mb-2">
-                המלצות להמשך
-              </div>
-              <ul className="space-y-1.5 text-sm text-muted-foreground">
-                {(recommendations as string[]).slice(0, 5).map((rec, i) => (
-                  <li key={i} className="flex gap-2">
-                    <span className="text-emerald-500 mt-0.5">•</span>
-                    <span>{rec}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </DashboardCard>
-
-        <DashboardCard title="איך חישבנו את החזר המס שלך" subtitle="פירוט חישוב ברור">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {[
-              ["הכנסה שנתית", fmtIls(incomeNum)],
-              ["מס ששולם", fmtIls(taxPaidNum)],
-              ["נקודות זיכוי", String(creditPointsNum || 0)],
-              ["ערך נקודת זיכוי", fmtIls(creditValueNum || 0)],
-              ["מס ברוטו", fmtIls(grossTaxNum || 0)],
-              ["מס נטו", fmtIls(netTaxNum || 0)],
-              ["החזר / חוב", fmtIls(refundNum)],
-            ].map(([label, value]) => (
-              <div
-                key={label}
-                className="rounded-xl border border-border bg-muted/10 px-4 py-3 flex items-center justify-between gap-4"
-              >
-                <div className="text-sm text-muted-foreground">{label}</div>
-                <div className="text-sm font-semibold text-foreground tabular-nums">
-                  {value}
-                </div>
-              </div>
-            ))}
+        <section className="rounded-xl border border-[#e8eaf2] bg-white shadow-sm overflow-hidden">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-5 py-4 border-b border-[#e8eaf2] bg-[#f8f9fc]">
+            <h2 className="text-lg font-extrabold text-[#131b2e]">
+              פירוט חישוב סופי
+            </h2>
+            <span className="text-sm text-[#64748b]">
+              שנת מס: {currentTaxData.taxYear}
+            </span>
           </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-right min-w-[520px]">
+              <thead>
+                <tr className="text-xs text-[#64748b] border-b border-[#e8eaf2] bg-[#f8f9fc]/80">
+                  <th className="px-4 py-3 font-semibold">סעיף</th>
+                  <th className="px-4 py-3 font-semibold">שכר ברוטו</th>
+                  <th className="px-4 py-3 font-semibold">זיכויים</th>
+                  <th className="px-4 py-3 font-semibold">חישוב סופי</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#e8eaf2]">
+                <tr>
+                  <td className="px-4 py-3 text-[#131b2e]">שכר ונספחים</td>
+                  <td className="px-4 py-3 tabular-nums">{fmtIls(salaryEst)}</td>
+                  <td className="px-4 py-3 tabular-nums text-rose-600">
+                    −
+                    {Math.min(creditTotalEst, salaryEst).toLocaleString("he-IL")}{" "}
+                    ₪
+                  </td>
+                  <td className="px-4 py-3 font-semibold tabular-nums">
+                    {fmtIls(Math.max(0, salaryEst - Math.min(creditTotalEst, salaryEst)))}
+                  </td>
+                </tr>
+                <tr>
+                  <td className="px-4 py-3 text-[#131b2e]">הכנסות נוספות</td>
+                  <td className="px-4 py-3 tabular-nums">
+                    {fmtIls(additionalIncomeNum)}
+                  </td>
+                  <td className="px-4 py-3 tabular-nums text-[#64748b]">—</td>
+                  <td className="px-4 py-3 font-semibold tabular-nums">
+                    {fmtIls(additionalIncomeNum)}
+                  </td>
+                </tr>
+                <tr>
+                  <td className="px-4 py-3 text-[#131b2e]">הפרשות לקופות גמל</td>
+                  <td className="px-4 py-3 tabular-nums text-[#64748b]">—</td>
+                  <td className="px-4 py-3 tabular-nums text-[#64748b]">—</td>
+                  <td className="px-4 py-3 font-semibold tabular-nums text-[#64748b] text-xs">
+                    לפי נתוני המערכת
+                  </td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr className="bg-emerald-50/90 text-[#006D4E]">
+                  <td
+                    colSpan={3}
+                    className="px-4 py-4 font-extrabold text-right"
+                  >
+                    סה&quot;כ החזר מאושר
+                  </td>
+                  <td className="px-4 py-4 font-extrabold text-lg tabular-nums">
+                    {fmtIls(refundNum)}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </section>
 
-          <details className="mt-4">
-            <summary className="cursor-pointer text-sm text-muted-foreground">
-              הצג פירוט מלא
-            </summary>
-            <div className="mt-3 rounded-xl bg-muted/60 px-4 py-3 text-sm text-muted-foreground whitespace-pre-line leading-relaxed font-mono">
-              {explanationStr}
+        <div className="grid md:grid-cols-2 gap-4">
+          <DashboardCard
+            title="מה זה אומר?"
+            className="border-[#e8eaf2] shadow-sm"
+          >
+            {whyRefund && typeof whyRefund === "string" ? (
+              <p className="text-sm text-[#4a5568] leading-relaxed">
+                {whyRefund}
+              </p>
+            ) : (
+              <p className="text-sm text-[#4a5568] leading-relaxed">
+                {explanationStr.split("\n")[0]}
+              </p>
+            )}
+          </DashboardCard>
+          <DashboardCard
+            title="נתונים טכניים"
+            className="border-[#e8eaf2] shadow-sm"
+          >
+            <div className="grid grid-cols-1 gap-2 text-sm">
+              <div className="flex justify-between gap-2 text-[#64748b]">
+                <span>מס ברוטו</span>
+                <span className="font-semibold text-[#131b2e] tabular-nums">
+                  {fmtIls(grossTaxNum || 0)}
+                </span>
+              </div>
+              <div className="flex justify-between gap-2 text-[#64748b]">
+                <span>מס נטו</span>
+                <span className="font-semibold text-[#131b2e] tabular-nums">
+                  {fmtIls(netTaxNum || 0)}
+                </span>
+              </div>
+              <div className="flex justify-between gap-2 text-[#64748b]">
+                <span>ערך נקודת זיכוי</span>
+                <span className="font-semibold text-[#131b2e] tabular-nums">
+                  {fmtIls(creditValueNum || 0)}
+                </span>
+              </div>
             </div>
-          </details>
-        </DashboardCard>
+            <details className="mt-4">
+              <summary className="cursor-pointer text-sm text-[#006D4E] font-semibold">
+                הצג פירוט מלא
+              </summary>
+              <div className="mt-3 rounded-xl bg-[#f8f9fc] px-4 py-3 text-xs text-[#64748b] whitespace-pre-line leading-relaxed">
+                {explanationStr}
+              </div>
+            </details>
+          </DashboardCard>
         </div>
-      </div>
 
-      <div className="lg:col-span-8 lg:col-start-5">
-        <DashboardCard title="פעולות" subtitle="השלב הבא שלך">
-          <div dir="rtl">
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-            <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-              <button
-                type="button"
-                onClick={() => {
-                  const fromHistory = location.state?.fromHistory;
-                  if (fromHistory) navigate("/history");
-                  else {
-                    goToPreviousStep();
-                    navigate("/");
-                  }
-                }}
-                className="btn-secondary w-full sm:w-auto"
-              >
-                חזרה
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  resetCalculator();
+        {Array.isArray(recommendations) && recommendations.length > 0 && (
+          <DashboardCard title="המלצות" className="border-[#e8eaf2] shadow-sm">
+            <ul className="space-y-2 text-sm text-[#64748b]">
+              {(recommendations as string[]).slice(0, 6).map((rec, i) => (
+                <li key={i} className="flex gap-2">
+                  <span className="text-[#00A86B]">•</span>
+                  {rec}
+                </li>
+              ))}
+            </ul>
+          </DashboardCard>
+        )}
+
+        <div className="flex flex-col items-center gap-4 pt-2">
+          <button
+            type="button"
+            className="w-full max-w-lg flex items-center justify-center gap-2 py-3.5 rounded-xl border-2 border-[#006D4E] text-[#006D4E] font-bold bg-white hover:bg-[#E6E9FF]/40 transition-colors shadow-sm"
+            onClick={() =>
+              window.alert(
+                "להגשת בקשה בפועל יש להיכנס לאזור האישי של רשות המיסים. השלב מתבצע מחוץ למערכת זו."
+              )
+            }
+          >
+            <Send className="h-5 w-5" />
+            הגשת הבקשה לרשות המיסים
+          </button>
+          <div className="flex flex-wrap items-center justify-center gap-2 w-full">
+            <button
+              type="button"
+              onClick={() => {
+                const fromHistory = location.state?.fromHistory;
+                if (fromHistory) navigate("/history");
+                else {
+                  goToPreviousStep();
                   navigate("/");
-                }}
-                className="btn-secondary w-full sm:w-auto"
-              >
-                חישוב חדש
-              </button>
-            </div>
-            <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-              <button
-                type="button"
-                className="btn-secondary w-full sm:w-auto"
-                onClick={() => {
-                  resetCalculator();
-                  navigate("/");
-                }}
-              >
-                העלה טופס חדש
-              </button>
-              <button
-                type="button"
-                className="btn-secondary w-full sm:w-auto disabled:opacity-50"
-                disabled={downloading}
-                onClick={handleDownloadPdf}
-              >
-                {downloading ? "מוריד..." : "שמור PDF"}
-              </button>
-              <button
-                type="button"
-                className="btn-primary w-full sm:w-auto"
-                onClick={() => setIsEmailModalOpen(true)}
-              >
-                שלח במייל
-              </button>
-            </div>
+                }
+              }}
+              className="px-4 py-2 rounded-xl border border-[#e8eaf2] bg-white text-sm font-medium text-[#131b2e] hover:bg-[#E6E9FF]/30"
+            >
+              חזרה
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                resetCalculator();
+                navigate("/");
+              }}
+              className="px-4 py-2 rounded-xl border border-[#e8eaf2] bg-white text-sm font-medium text-[#131b2e] hover:bg-[#E6E9FF]/30"
+            >
+              חישוב חדש
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                resetCalculator();
+                navigate("/incomes");
+              }}
+              className="px-4 py-2 rounded-xl border border-[#e8eaf2] bg-white text-sm font-medium text-[#131b2e] hover:bg-[#E6E9FF]/30"
+            >
+              העלה טופס חדש
+            </button>
+            <button
+              type="button"
+              disabled={downloading}
+              onClick={handleDownloadPdf}
+              className="px-4 py-2 rounded-xl bg-[#006D4E] text-white text-sm font-semibold hover:bg-[#005a40] disabled:opacity-50"
+            >
+              {downloading ? "מוריד…" : "שמור PDF"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsEmailModalOpen(true)}
+              className="px-4 py-2 rounded-xl bg-[#00A86B] text-white text-sm font-semibold hover:bg-[#00925d]"
+            >
+              שלח במייל
+            </button>
           </div>
-          </div>
-        </DashboardCard>
+        </div>
       </div>
 
         {/* דיאלוג שליחת מייל */}
@@ -879,6 +899,6 @@ export const ResultsDisplay: React.FC = () => {
             </div>
           </div>
         )}
-    </div>
+    </>
   );
 };

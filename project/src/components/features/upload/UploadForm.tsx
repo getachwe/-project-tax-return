@@ -1,54 +1,68 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Upload, Pencil, ArrowRight } from "lucide-react";
-import { useTaxCalculator } from "../../../context/TaxCalculatorContext";
-import type { TaxData } from "../../../context/TaxCalculatorContext";
+import {
+  useTaxCalculator,
+  defaultTaxData,
+} from "../../../context/TaxCalculatorContext";
 import { UploadDropzone } from "./UploadDropzone";
 import { UploadTips } from "./UploadTips";
 import { UploadProgress } from "./UploadProgress";
-import { MissingDataForm } from "./MissingDataForm";
 import Toast from "../../Toast";
 import { apiProcess106 } from "../../../utils/api";
 
 export const UploadForm: React.FC = () => {
-  const { goToNextStep, setTaxData } = useTaxCalculator();
+  const { goToNextStep, setTaxData, setPendingMissingUpload } =
+    useTaxCalculator();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [missingFields, setMissingFields] = useState<string[] | null>(null);
-  const [extractedData, setExtractedData] = useState<Record<
-    string,
-    string | number | undefined
-  > | null>(null);
-  const [missingValues, setMissingValues] = useState<
-    Record<string, string | number>
-  >({});
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [toast, setToast] = useState<{
     type: "success" | "error" | "info";
     message: string;
   } | null>(null);
 
-  const openPickerRef = useRef<null | (() => void)>(null);
+  /** מניעת goToNextStep כפול: טיימר אוטומטי אחרי הצלחה + לחיצה על "המשך" היו קופצים 1→2 ואז 2→3 */
+  const autoAdvanceAfterUploadRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+
+  const clearAutoAdvanceAfterUpload = () => {
+    if (autoAdvanceAfterUploadRef.current != null) {
+      clearTimeout(autoAdvanceAfterUploadRef.current);
+      autoAdvanceAfterUploadRef.current = null;
+    }
+  };
+
+  useEffect(() => () => clearAutoAdvanceAfterUpload(), []);
 
   const handleFileUpload = async (file: File) => {
+    clearAutoAdvanceAfterUpload();
     setError(null);
     setIsLoading(true);
-    setMissingFields(null);
-    setExtractedData(null);
-    setMissingValues({});
     setSelectedFile(file);
 
     try {
       const result = await apiProcess106(file);
       if (!result.success) throw new Error(result.error || "שגיאה לא ידועה");
+      if (!result.data) throw new Error("לא התקבלו נתונים מהשרת");
 
-      setExtractedData(result.data);
+      const data = result.data as Record<string, string | number | undefined>;
 
       if (result.missingFields && result.missingFields.length > 0) {
-        setMissingFields(result.missingFields);
+        setTaxData({
+          ...defaultTaxData,
+          dataSource: "upload",
+          hasFormData: true,
+        });
+        setPendingMissingUpload({
+          extractedData: data,
+          missingValues: {},
+        });
+        goToNextStep();
       } else {
         // All data extracted successfully
         // Preserve taxYear from extraction when valid; otherwise default to last year
-        const extractedYear = Number(result.data.taxYear);
+        const extractedYear = Number(data.taxYear);
         const boundedExtractedYear = !Number.isNaN(extractedYear)
           ? Math.max(
               Math.min(extractedYear, new Date().getFullYear() - 1),
@@ -57,37 +71,39 @@ export const UploadForm: React.FC = () => {
           : new Date().getFullYear() - 1;
 
         setTaxData({
-          income: Number(result.data.income) || 0,
-          taxPaid: Number(result.data.taxPaid) || 0,
-          taxCredits: Number(result.data.creditPoints) || 2.25,
-          hasFormData: true,
-          maritalStatus: String(result.data.maritalStatus || "single"),
+          ...defaultTaxData,
+          income: Number(data.income) || 0,
+          taxPaid: Number(data.taxPaid) || 0,
+          taxCredits: Number(data.creditPoints) || 2.25,
+          maritalStatus: String(data.maritalStatus || "single"),
           taxYear: boundedExtractedYear,
-          gender: result.data.gender,
-          employmentType: result.data.employmentType,
-          children: Number(result.data.children) || 0,
-          birthDate: result.data.birthDate,
-          workStartDate: result.data.workStartDate,
-          workEndDate: result.data.workEndDate,
-          additionalIncome: Number(result.data.additionalIncome) || 0,
-          oldAgeAllowance: Number(result.data.oldAgeAllowance) || 0,
-          childAllowance: Number(result.data.childAllowance) || 0,
-          disabilityAllowance: Number(result.data.disabilityAllowance) || 0,
-          firstName: result.data.firstName,
-          lastName: result.data.lastName,
-          email: result.data.email,
-          phone: result.data.phone,
-          address: result.data.address,
-          city: result.data.city,
-          postalCode: result.data.postalCode,
-          ...result.data, // הוספת כל הנתונים הנוספים
+          gender: data.gender,
+          employmentType: data.employmentType,
+          children: Number(data.children) || 0,
+          birthDate: data.birthDate,
+          workStartDate: data.workStartDate,
+          workEndDate: data.workEndDate,
+          additionalIncome: Number(data.additionalIncome) || 0,
+          oldAgeAllowance: Number(data.oldAgeAllowance) || 0,
+          childAllowance: Number(data.childAllowance) || 0,
+          disabilityAllowance: Number(data.disabilityAllowance) || 0,
+          firstName: data.firstName,
+          lastName: data.lastName,
+          email: data.email,
+          phone: data.phone,
+          address: data.address,
+          city: data.city,
+          postalCode: data.postalCode,
+          ...data,
+          dataSource: "upload",
+          hasFormData: true,
         });
         setToast({
           type: "success",
-          message: "הקובץ עובד בהצלחה! מעבר לחישוב התוצאות...",
+          message: "הקובץ עובד בהצלחה! מעבר לשלב הבא בעוד רגע…",
         });
-        setTimeout(() => {
-          console.log("🚀 UploadForm calling goToNextStep");
+        autoAdvanceAfterUploadRef.current = setTimeout(() => {
+          autoAdvanceAfterUploadRef.current = null;
           goToNextStep();
         }, 1500);
       }
@@ -99,175 +115,125 @@ export const UploadForm: React.FC = () => {
     }
   };
 
-  const handleMissingSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log("🚀 UploadForm handleMissingSubmit called");
-    if (!extractedData) {
-      console.log("❌ No extractedData, returning");
-      return;
-    }
-
-    const finalData = { ...extractedData, ...missingValues };
-    // Ensure taxYear is preserved exactly as entered by the user when valid
-    const numericYear = Number(finalData.taxYear);
-    const boundedYear = !Number.isNaN(numericYear)
-      ? Math.max(
-          Math.min(numericYear, new Date().getFullYear() - 1),
-          new Date().getFullYear() - 6,
-        )
-      : undefined;
-    console.log("📝 Final data:", finalData);
-
-    const newTaxData = {
-      income: Number(finalData.income) || 0,
-      taxPaid: Number(finalData.taxPaid) || 0,
-      taxCredits: Number(finalData.creditPoints) || 2.25,
-      hasFormData: true,
-      maritalStatus: String(finalData.maritalStatus || "single"),
-      taxYear: boundedYear ?? new Date().getFullYear() - 1,
-      gender: finalData.gender,
-      employmentType: finalData.employmentType,
-      children: Number(finalData.children) || 0,
-      birthDate: finalData.birthDate,
-      workStartDate: finalData.workStartDate,
-      workEndDate: finalData.workEndDate,
-      additionalIncome: Number(finalData.additionalIncome) || 0,
-      oldAgeAllowance: Number(finalData.oldAgeAllowance) || 0,
-      childAllowance: Number(finalData.childAllowance) || 0,
-      disabilityAllowance: Number(finalData.disabilityAllowance) || 0,
-      firstName: finalData.firstName,
-      lastName: finalData.lastName,
-      email: finalData.email,
-      phone: finalData.phone,
-      address: finalData.address,
-      city: finalData.city,
-      postalCode: finalData.postalCode,
-      ...finalData, // הוספת כל הנתונים הנוספים
-    };
-
-    console.log("📝 Setting taxData in UploadForm:", newTaxData);
-    setTaxData(newTaxData as unknown as TaxData);
-
-    setToast({
-      type: "success",
-      message: "המידע נשמר בהצלחה! מעבר לחישוב התוצאות...",
-    });
-
-    console.log("🚀 Moving to next step...");
-    setTimeout(() => {
-      console.log("🚀 About to call goToNextStep");
-      goToNextStep();
-      console.log("✅ goToNextStep called");
-    }, 1500);
-  };
-
   const handleManualEntry = () => {
-    console.log("🚀 UploadForm handleManualEntry called");
-    const manualTaxData = {
-      income: 0,
-      taxPaid: 0,
-      taxCredits: 2.25,
-      hasFormData: false,
-    };
-    console.log("📝 Setting manual taxData:", manualTaxData);
-    setTaxData(manualTaxData);
-    console.log("🚀 Calling goToNextStep from handleManualEntry");
+    clearAutoAdvanceAfterUpload();
+    setTaxData({ ...defaultTaxData });
     goToNextStep();
   };
 
-  const handleValueChange = (id: string, value: string | number | boolean) => {
-    console.log("handleValueChange:", id, value);
-    setMissingValues((prev) => ({
-      ...prev,
-      [id]: typeof value === "boolean" ? String(value) : value,
-    }));
+  const handleContinueAfterUpload = () => {
+    clearAutoAdvanceAfterUpload();
+    goToNextStep();
   };
-
-  // If missing fields, show dynamic form
-  if (missingFields && missingFields.length > 0 && extractedData) {
-    return (
-      <>
-        <MissingDataForm
-          extractedData={extractedData}
-          missingValues={missingValues}
-          onValueChange={handleValueChange}
-          onSubmit={handleMissingSubmit}
-        />
-        {toast && (
-          <Toast
-            type={toast.type}
-            message={toast.message}
-            onClose={() => setToast(null)}
-          />
-        )}
-      </>
-    );
-  }
 
   return (
     <>
-      <div className="max-w-3xl mx-auto space-y-4">
-        {/* Hero */}
-
-        {/* Tips box – smaller and centered */}
-        <div className="bg-card text-card-foreground rounded-3xl shadow-md border border-border px-4 sm:px-5 py-4">
-          <UploadTips />
-        </div>
-
-        {/* Upload box – smaller and centered */}
-        <div className="bg-card text-card-foreground rounded-3xl shadow-xl border border-border px-5 sm:px-6 py-6 sm:py-7">
-          {/* Header */}
-          <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg mx-auto mb-4">
-              <Upload className="h-8 w-8 text-white" />
+      <div className="w-full px-0 sm:px-2 py-4 sm:py-6" dir="rtl">
+        {/* Hero steps */}
+        <section className="mb-10 mt-4">
+          <h2 className="text-[1.75rem] font-extrabold text-[#006D4E] mb-6 text-center">
+            העלאת טופס 106
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+            <div className="bg-card text-card-foreground p-5 rounded-2xl border border-border/40">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-700 to-emerald-500 flex items-center justify-center text-white font-bold mb-4">
+                1
+              </div>
+              <h3 className="text-lg font-bold mb-2">הורדת הטופס</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                היכנס לאתר המעסיק או פנה למחלקת השכר לקבלת טופס 106 עבור שנת המס הרלוונטית.
+              </p>
             </div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
-              העלאת טופס 106
-            </h1>
-            <p className="text-muted-foreground text-base sm:text-lg leading-relaxed max-w-2xl mx-auto">
-              בחר/י טופס 106 או גרור/י לכאן, ואז המשך לשלב הבא.
-            </p>
+            <div className="bg-card text-card-foreground p-5 rounded-2xl border border-border/40">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-700 to-emerald-500 flex items-center justify-center text-white font-bold mb-4">
+                2
+              </div>
+              <h3 className="text-lg font-bold mb-2">סריקה או צילום</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                ודא כי המסמך ברור, כל הפרטים קריאים וכל דפי הטופס צולמו במלואם.
+              </p>
+            </div>
+            <div className="bg-card text-card-foreground p-5 rounded-2xl border border-border/40">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-700 to-emerald-500 flex items-center justify-center text-white font-bold mb-4">
+                3
+              </div>
+              <h3 className="text-lg font-bold mb-2">העלאה למערכת</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                גרור את הקובץ לאזור ההעלאה או בחר אותו מהמחשב או מהטלפון שלך.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* Main upload layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-10 gap-6 lg:gap-8 items-start">
+          {/* Tips + security column (left in design) */}
+          <div className="lg:col-span-3 flex flex-col gap-4 lg:gap-6">
+            <div className="bg-card text-card-foreground rounded-2xl border border-border/40 overflow-hidden">
+              <div className="px-5 py-4 border-b border-border/40 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <Upload className="h-4 w-4 text-primary" />
+                  </div>
+                  <h4 className="font-bold text-sm sm:text-base">טיפים להעלאה</h4>
+                </div>
+              </div>
+              <div className="px-5 py-4">
+                <UploadTips />
+              </div>
+            </div>
+
+            <div className="bg-card text-card-foreground rounded-2xl border border-border/40 p-5 flex items-start gap-3">
+              <div className="h-10 w-10 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
+                <Upload className="h-5 w-5 text-primary" />
+              </div>
+              <div className="text-right">
+                <p className="text-sm font-bold">אבטחה מקסימלית</p>
+                <p className="text-[11px] text-muted-foreground leading-tight mt-1">
+                  המסמכים שלך מוצפנים ונשמרים בסטנדרטים מחמירים. אנו לא משתפים את הנתונים שלך
+                  עם גורמים חיצוניים ללא רשות.
+                </p>
+              </div>
+            </div>
           </div>
 
-          {/* Upload content */}
-          <div className="max-w-lg mx-auto space-y-4">
-            <UploadDropzone
-              onFileUpload={handleFileUpload}
-              isLoading={isLoading}
-              selectedFile={selectedFile}
-              onOpenReady={(open) => {
-                openPickerRef.current = open;
-              }}
-            />
+          {/* Dropzone / upload column */}
+          <div className="lg:col-span-7">
+            <div className="bg-card text-card-foreground rounded-2xl border border-border/40 p-6 sm:p-8 lg:p-10 flex flex-col justify-center min-h-[320px]">
+              <div className="max-w-2xl mx-auto w-full space-y-6 text-center">
+                <UploadDropzone
+                  onFileUpload={handleFileUpload}
+                  isLoading={isLoading}
+                  selectedFile={selectedFile}
+                  onManualEntry={handleManualEntry}
+                />
 
-            {selectedFile && !isLoading && !missingFields ? (
-              <div className="grid sm:grid-cols-2 gap-3">
-                <button
-                  onClick={handleManualEntry}
-                  className="h-11 sm:h-12 btn-secondary rounded-xl flex items-center justify-center gap-2"
-                >
-                  <Pencil className="h-5 w-5" />
-                  הזנה ידנית
-                </button>
-                <button
-                  onClick={() => goToNextStep()}
-                  className="h-11 sm:h-12 btn-primary rounded-xl flex items-center justify-center gap-2"
-                >
-                  <ArrowRight className="h-5 w-5" />
-                  המשך לשלב הבא
-                </button>
+                {selectedFile && !isLoading ? (
+                  <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                    <button
+                      type="button"
+                      onClick={handleManualEntry}
+                      className="h-11 sm:h-12 px-6 btn-secondary rounded-xl flex items-center justify-center gap-2"
+                    >
+                      <Pencil className="h-5 w-5" />
+                      הזנה ידנית
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleContinueAfterUpload}
+                      className="h-11 sm:h-12 px-8 btn-primary rounded-xl flex items-center justify-center gap-2"
+                    >
+                      <ArrowRight className="h-5 w-5" />
+                      המשך לבדיקה
+                    </button>
+                  </div>
+                ) : null}
+
+                {error && (
+                  <p className="text-sm text-red-600 text-center mt-2">{error}</p>
+                )}
               </div>
-            ) : (
-              <div className="flex justify-center">
-                <button
-                  onClick={handleManualEntry}
-                  className="h-11 sm:h-12 btn-secondary rounded-xl flex items-center justify-center gap-2 px-6"
-                >
-                  <Pencil className="h-5 w-5" />
-                  הזנה ידנית
-                </button>
-              </div>
-            )}
+            </div>
           </div>
         </div>
       </div>

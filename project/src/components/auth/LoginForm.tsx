@@ -35,9 +35,9 @@ export const LoginForm: React.FC<LoginFormProps> = ({
       <div>
         <label
           htmlFor="email"
-          className="block text-sm font-medium text-gray-700 mb-1"
+          className="block text-sm font-bold text-[#3c4a42] mb-1"
         >
-          אימייל
+          כתובת אימייל
         </label>
         <div className="relative">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -48,7 +48,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
             type="email"
             aria-label="כתובת אימייל"
             className="w-full pl-10 pr-4 py-2 h-10 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm transition-colors hover:scale-[1.01]"
-            placeholder="example@gmail.com"
+            placeholder="name@company.com"
             value={email}
             onChange={(e) => onEmailChange(e.target.value)}
             required
@@ -95,12 +95,18 @@ export const LoginForm: React.FC<LoginFormProps> = ({
       <button
         type="submit"
         disabled={!canSubmit || loading}
-        className={`w-full h-10 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium shadow-md flex items-center justify-center gap-2 transition ease-in-out duration-200 hover:scale-[1.01] ${
+        className={`w-full h-10 bg-gradient-to-br from-[#006c49] to-[#10b981] hover:from-[#005236] hover:to-[#10b981] text-white rounded-lg font-extrabold shadow-md flex items-center justify-center gap-2 transition ease-in-out duration-200 hover:scale-[1.01] ${
           !canSubmit || loading ? "opacity-50 cursor-not-allowed" : ""
         }`}
       >
-        <LogIn className="h-4 w-4" />
-        כניסה
+        {loading ? (
+          "טוען..."
+        ) : (
+          <>
+            <LogIn className="h-4 w-4" />
+            המשך למערכת
+          </>
+        )}
       </button>
     </form>
   );
