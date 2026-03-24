@@ -282,6 +282,7 @@ export const AuthPanel: React.FC = () => {
                     <div className="border-t border-[#e8eaf2] dark:border-slate-700 bg-[#f8fafc]/90 dark:bg-slate-950/50 px-2 sm:px-3 pb-3 pt-2">
                       <TaxAssistantChat
                         variant="guest"
+                        autoFocusInput={assistantOpen}
                         className="!max-w-none w-full mx-0 shadow-md border-[#d8dcf0]/70 min-h-[min(340px,42vh)] max-h-[min(540px,58vh)]"
                       />
                     </div>

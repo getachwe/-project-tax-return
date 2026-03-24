@@ -10,12 +10,62 @@ const LS_USER_CONV = "taxChat_user_conversationId";
 const LS_GUEST_CONV = "taxChat_guest_conversationId";
 const LS_GUEST_SID = "taxChat_guest_sessionId";
 
+function getUserIdFromToken(raw: string | null): string | null {
+  if (!raw) return null;
+  try {
+    const payload = JSON.parse(
+      atob(raw.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")),
+    );
+    return typeof payload?.sub === "string" ? payload.sub : null;
+  } catch {
+    return null;
+  }
+}
+
+/** מזהה שיחה נפרד לכל משתמש מחובר — נשמר בין כניסות לעמוד העוזר */
+function readStoredConversationId(isGuestUi: boolean): string | null {
+  if (typeof window === "undefined") return null;
+  if (isGuestUi) return localStorage.getItem(LS_GUEST_CONV);
+  const token = localStorage.getItem("authToken");
+  const sub = getUserIdFromToken(token);
+  if (sub) {
+    const scoped = `taxChat_conv_user_${sub}`;
+    const v = localStorage.getItem(scoped);
+    if (v) return v;
+    const legacy = localStorage.getItem(LS_USER_CONV);
+    if (legacy) {
+      localStorage.setItem(scoped, legacy);
+      localStorage.removeItem(LS_USER_CONV);
+      return legacy;
+    }
+    return null;
+  }
+  return localStorage.getItem(LS_USER_CONV);
+}
+
+function persistUserConversationId(
+  token: string | null,
+  conversationId: string,
+) {
+  if (typeof window === "undefined") return;
+  const sub = getUserIdFromToken(token);
+  if (sub) {
+    localStorage.setItem(`taxChat_conv_user_${sub}`, conversationId);
+    localStorage.removeItem(LS_USER_CONV);
+  } else {
+    localStorage.setItem(LS_USER_CONV, conversationId);
+  }
+}
+
 function clearChatLocalStorage(isGuestUi: boolean) {
   if (typeof window === "undefined") return;
   if (isGuestUi) {
     localStorage.removeItem(LS_GUEST_CONV);
     localStorage.removeItem(LS_GUEST_SID);
   } else {
+    const token = localStorage.getItem("authToken");
+    const sub = getUserIdFromToken(token);
+    if (sub) localStorage.removeItem(`taxChat_conv_user_${sub}`);
     localStorage.removeItem(LS_USER_CONV);
   }
 }
@@ -24,11 +74,14 @@ type Props = {
   /** אורח (מסך התחברות) — ללא טוקן */
   variant?: "guest" | "dashboard";
   className?: string;
+  /** מיקוד אוטומטי לשדה הקלט כשהרכיב גלוי ומוכן (למשל צ'אט פתוח) */
+  autoFocusInput?: boolean;
 };
 
 export const TaxAssistantChat: React.FC<Props> = ({
   variant = "dashboard",
   className = "",
+  autoFocusInput = false,
 }) => {
   const { t } = useI18n();
   const [token, setToken] = useState<string | null>(() =>
@@ -44,12 +97,9 @@ export const TaxAssistantChat: React.FC<Props> = ({
     null,
   );
   const [historyLoaded, setHistoryLoaded] = useState(false);
-  const [conversationId, setConversationId] = useState<string | null>(() => {
-    if (typeof window === "undefined") return null;
-    return variant === "guest"
-      ? localStorage.getItem(LS_GUEST_CONV)
-      : localStorage.getItem(LS_USER_CONV);
-  });
+  const [conversationId, setConversationId] = useState<string | null>(() =>
+    readStoredConversationId(variant === "guest"),
+  );
   const [guestSessionId, setGuestSessionId] = useState<string | null>(() => {
     if (typeof window === "undefined" || variant !== "guest") return null;
     return localStorage.getItem(LS_GUEST_SID);
@@ -62,6 +112,7 @@ export const TaxAssistantChat: React.FC<Props> = ({
     null,
   );
   const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const isGuestUi = variant === "guest";
 
@@ -70,6 +121,12 @@ export const TaxAssistantChat: React.FC<Props> = ({
       const t = localStorage.getItem("authToken");
       setToken(t);
       setBearerOk(!!t);
+      if (!isGuestUi && !t) {
+        setMessages([]);
+        setConversationId(null);
+        setGuestSessionId(null);
+        setHistoryLoaded(true);
+      }
     };
     syncAuth();
     window.addEventListener("auth:loggedIn", syncAuth);
@@ -88,9 +145,11 @@ export const TaxAssistantChat: React.FC<Props> = ({
 
   useEffect(() => {
     let cancelled = false;
-    const cId = isGuestUi
-      ? localStorage.getItem(LS_GUEST_CONV)
-      : localStorage.getItem(LS_USER_CONV);
+    const bearerFromLs =
+      !isGuestUi && typeof window !== "undefined"
+        ? localStorage.getItem("authToken")
+        : null;
+    const cId = readStoredConversationId(isGuestUi);
     const gSid = isGuestUi ? localStorage.getItem(LS_GUEST_SID) : null;
 
     if (!cId || (isGuestUi && !gSid)) {
@@ -100,7 +159,7 @@ export const TaxAssistantChat: React.FC<Props> = ({
       };
     }
 
-    if (!isGuestUi && !token) {
+    if (!isGuestUi && !bearerFromLs) {
       setHistoryLoaded(true);
       return () => {
         cancelled = true;
@@ -111,7 +170,7 @@ export const TaxAssistantChat: React.FC<Props> = ({
       try {
         const bearer =
           !isGuestUi && typeof window !== "undefined"
-            ? localStorage.getItem("authToken") || token
+            ? localStorage.getItem("authToken") || token || undefined
             : undefined;
         const { messages: rows, chatDbAvailable } = await apiChatLoadMessages(
           cId,
@@ -149,6 +208,14 @@ export const TaxAssistantChat: React.FC<Props> = ({
     };
   }, [isGuestUi, token]);
 
+  useEffect(() => {
+    if (!autoFocusInput || !historyLoaded || loading) return;
+    const id = window.requestAnimationFrame(() => {
+      inputRef.current?.focus({ preventScroll: true });
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, [autoFocusInput, historyLoaded, loading]);
+
   const disclaimer =
     isGuestUi || !bearerOk
       ? t("assistant.disclaimer.general")
@@ -163,10 +230,15 @@ export const TaxAssistantChat: React.FC<Props> = ({
     }) => {
       if (res.conversationId) {
         setConversationId(res.conversationId);
-        localStorage.setItem(
-          isGuestUi ? LS_GUEST_CONV : LS_USER_CONV,
-          res.conversationId,
-        );
+        if (isGuestUi) {
+          localStorage.setItem(LS_GUEST_CONV, res.conversationId);
+        } else {
+          const tok =
+            typeof window !== "undefined"
+              ? localStorage.getItem("authToken")
+              : null;
+          persistUserConversationId(tok, res.conversationId);
+        }
       }
       if (isGuestUi && res.guestSessionId) {
         setGuestSessionId(res.guestSessionId);
@@ -218,6 +290,9 @@ export const TaxAssistantChat: React.FC<Props> = ({
         ]);
       } finally {
         setLoading(false);
+        queueMicrotask(() => {
+          inputRef.current?.focus({ preventScroll: true });
+        });
       }
     },
     [
@@ -394,6 +469,7 @@ export const TaxAssistantChat: React.FC<Props> = ({
         }}
       >
         <input
+          ref={inputRef}
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}

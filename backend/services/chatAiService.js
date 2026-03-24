@@ -14,6 +14,10 @@ const {
   lastAssistantWasClarification,
   stripClarifyTokenForDisplay,
 } = require("./chatClarification");
+const {
+  getChatSystemKnowledgeContextBlock,
+  getOfficialFilingHowToSectionHe,
+} = require("./chatSystemKnowledge");
 
 const OUT_OF_CONTEXT_HE =
   "אין מספיק מידע כדי לענות על השאלה.";
@@ -29,6 +33,22 @@ const SYSTEM_INSTRUCTIONS_HE = `אתה אנליסט פיננסי-מס במערכ
 - אם **יש** נתונים חלקיים — **אל** תסתפקו במשפט הקצר בלבד: ציינו מה **כן** ידוע מהנתונים, והמשיכו לפי הכללים למטה.
 
 **ניתוח השאלה:** קראו את הודעת המשתמש האחרונה (והיסטוריה אם רלוונטי), זהו במדויק מה הוא שואל — הסבר, השוואה בין דוחות, סיבה למספר מסוים, סיכום וכו'. ענו **ישירות** על השאלה, תוך שימוש **אך ורק** במה שמופיע בבלוק "הקשר" ובשיחה. אין להחזיר תפריט כללי של "בחרו כיוון" אלא אם באמת אין בשאלה שום אפשרות סבירה לקשר להקשר — וגם אז העדיפו לענות ממה ש**כן** ידוע בנתונים.
+
+**שאלות על הגשה רשמית / שליחה לרשות / חיבור ממשלתי (לא נתוני דוח):**
+- אם השאלה היא האם **האפליקציה** מגישה/שולחת בשם המשתמש — ענו **ישירות** **לא**; המערכת מספקת חישוב משוער ושמירה אצל המשתמש בלבד; **אסור** לענות במספרי דוח בלבד.
+- אם השאלה היא **איך המשתמש מגיש** בקשה/דוח **מול רשות המיסים** (תהליך חיצוני) — ענו לפי סעיף **«הגשה רשמית מול רשות המיסים»** בתוך בלוק **ידע_מערכת** (כיוון כללי: שע"ם / ערוצים רשמיים, בלי פירוט משפטי מחייב). **אל** תסתפקו במשפט "האפליקציה לא מגישה" בלי להסביר מה עושים **מחוץ** לאפליקציה.
+
+**בלוק «ידע_מערכת» בהקשר:** אם מופיע בבלוק "הקשר" כותרת **### ידע_מערכת** — זהו מדריך המוצר (מסכים, נתיבים, מה מותר/אסור בשירות, **והגשה מול רשות המיסים**). לשאלות על **איך משתמשים במערכת**, **איפה מסך**, **ניווט**, **הגדרות**, **התחברות**, **מה האפליקציה עושה או לא עושה**, ו**איך מגישים מול הרשות** — ענו לפי התוכן שם. אם משהו לא מופיע שם — אמרו במפורש שאין בידע המערכת פירוט מדויק, **בלי** להמציא כפתורים או תכונות.
+
+**קישורי ניווט בצ'אט:** כשמפנים למסך באפליקציה, עדיפו תחביר Markdown \`[שם המסך](/נתיב)\` — לדוגמה \`[העלאת מסמכים](/incomes)\`, \`[היסטוריה](/history)\`, \`[עוזר מס](/assistant)\`, \`[הגדרות](/settings)\`, \`[דשבורד](/results)\` או \`[/](/)\`. רק נתיבים שמתחילים ב־\`/\` ואלו הנתיבים בלבד; בלי קישורים חיצוניים בתחביר זה.
+
+**שאלות מושגיות על „מה זה החזר מס” / „איך זה עובד”:** ענו **בהסבר עקרוני** (מה משמעות החזר מס בישראל ברמת כלליות, קשר לניכויים/זיכויים ולמס ששולם). **אל** תחליפו הסבר כזה בתשובה שמציגה **רק** מספר מהדוח. אם יש בבלוק ההקשר החזר משוער — אפשר **בסוף** להוסיף משפט אחד קצר שמציין את המספר כהדגמה מהדוח, אחרי ההסבר.
+
+**שאלות „מה לעשות עם זה” / צעדים / המשך אחרי סיכום:**
+כשהמשתמש שואל אחרי סיכום או מספרים מהדוח — למשל „מה אני צריך לעשות”, „מה הצעד הבא”, „איך משתמשים במידע”, „זה אומר ש…” — **אל** תענו בתבנית קבועה וזהה בכל פעם. התאימו את הניסוח ל**מה שכבר נאמר בשיחה** ול**מספרים בפועל** בהקשר (החזר חיובי, שלילי, או אפס; הכנסה; מס ששולם).
+- הסבירו **בקצרה** מה המשמעות **העקרונית** של התוצאה במסגרת המערכת (חישוב משוער לפי מה שהוזן), והבדל מול **החלטה רשמית** של רשות המיסים.
+- הציעו **כיווני פעולה כלליים** המתאימים למצב: לוודא מול טופס 106; לשמור את הדוח/לעיין בהיסטוריה במערכת; אם הנתונים לא מדויקים — להריץ חישוב מחדש אחרי תיקון; כשיש ספק או מורכבות — לשקול ייעוץ מס מקצועי (בלי לומר „חובה” או לתת ייעוץ משפטי).
+- **אסור** לבקש מהמשתמש להקליד סכומים בצ'אט; **אסור** להבטיח החזר או תוצאה מול רשות המיסים.
 
 **מקור נתונים (קריטי — לפי מפרט המערכת):**
 - כל מספר פיננסי חייב לבוא **רק** מבלוק "הקשר" (נתונים מהמסד). הניתוח הוא **קריאה** מנתונים קיימים — לא הזנה חדשה על ידי המשתמש בצ'אט.
@@ -108,10 +128,63 @@ function buildNoReportsHelpReply() {
   ].join("\n");
 }
 
+/** שאלה על מושג החזר מס / איך זה עובד — לא רק מספר מהדוח */
+function wantsConceptualTaxRefundQuestion(msg) {
+  const t = (msg || "").trim();
+  if (!t) return false;
+  return (
+    /מה\s+זה\s+(החזר|ההחזר|חזר\s*מס|החזר\s*מס)/i.test(t) ||
+    /מהו\s+(החזר|החזר\s*מס)/i.test(t) ||
+    /תסביר.{0,100}(מה\s+זה\s+)?(החזר|החזר\s*מס|חזר\s*מס)/i.test(t) ||
+    /איך\s+עובד.{0,60}(החזר|החזר\s*מס|חזר\s*מס)/i.test(t) ||
+    (/איך\s+(זה\s+)?עובד.{0,20}\?/.test(t) &&
+      /החזר|חזר\s*מס/i.test(t)) ||
+    /הסבר\s+(על\s+)?(החזר|חזר\s*מס)/i.test(t) ||
+    /מה\s+המשמעות.{0,40}(של\s+)?(החזר|החזר\s*מס)/i.test(t) ||
+    /מה\s+ההבדל.{0,50}החזר/i.test(t) ||
+    /למה\s+קור(א|ה)\s+החזר|למה\s+יש\s+החזר/i.test(t) ||
+    /what\s+is\s+a\s+tax\s+refund|how\s+does\s+tax\s+refund/i.test(t)
+  );
+}
+
+function buildConceptualTaxRefundReplyHe(contextObject) {
+  const parts = [
+    "**מה זה החזר מס (ברמת עקרון):** בדרך כלל מדובר במצב שבו לפי כללי מס הכנסה, אחרי חישוב המס החייב **לפי הנתונים** (הכנסה, ניכויים, נקודות זיכוי וכו'), מתקבל ש**שילמת יותר מס** ממה שנדרש לשנה הנבדקת. אזי, לפי כללי רשות המיסים, **עשוי** להיווצר יתר שמטופל כהחזר או כקיזוז — לפי הנהלים והדוח הרשמי שלך.",
+    "",
+    "**איך זה קשור לאפליקציה הזו:** כאן מחשבים **החזר משוער** על בסיס מה שהזנת (למשל מטופס 106): משווים בין המס \"המחושב\" לבין המס ששולם. **ערך חיובי** — לפי המודל יש החזר משוער; **ערך שלילי** — לפי המודל יש יתרת תשלום (לא החזר).",
+    "",
+    "זה **חישוב משוער** לפי הקלט — לא ייעוץ מס ולא מחליף החלטה של רשות המיסים.",
+  ];
+  const r = contextObject.latestReport;
+  if (contextObject.mode === "authenticated" && r) {
+    const calc = r.calculation || {};
+    const refund =
+      num(calc.refundAmount) ??
+      num(calc.totalRefund) ??
+      num(calc.refund);
+    if (refund != null) {
+      parts.push(
+        "",
+        `**לצורך הקשר:** בדוח האחרון ששמור אצלך במערכת ההחזר המשוער הוא בערך **${refund.toLocaleString("he-IL")} ₪** — זה **בנוסף** להסבר למעלה, לא במקום הסבר המושג.`,
+      );
+    }
+  }
+  return parts.join("\n");
+}
+
 /** יש דוחות אבל השאלה לא הותאמה — סיכום מה יש + הצעות */
 function buildReportAwareHelpReply(contextObject, userMessage) {
+  if (wantsCapabilityOrientationQuestion(userMessage)) {
+    return buildCapabilityOrientationReply(contextObject, userMessage);
+  }
+  if (wantsConceptualTaxRefundQuestion(userMessage)) {
+    return buildConceptualTaxRefundReplyHe(contextObject);
+  }
+
   const r = contextObject.latestReport;
   if (!r) return buildNoReportsHelpReply();
+
+  const nReports = getReportsArray(contextObject).length;
 
   const td = r.taxData || {};
   const calc = r.calculation || {};
@@ -583,13 +656,23 @@ function safeContextToPromptBlock(ctx) {
  * מחרוזת הקשר ל-LLM: נתונים מעובדים לטקסט (ללא PII), ואופציונלית JSON אם CHAT_APPEND_COMPACT_JSON=1
  */
 function contextToPromptBlock(ctx) {
+  const systemKb = getChatSystemKnowledgeContextBlock();
+
   if (ctx.mode === "guest") {
-    return `מצב: אורח (ללא נתונים אישיים).\nידע כללי בלבד:\n${ctx.guestKnowledge || ""}`;
+    return [
+      "מצב: אורח (ללא נתונים אישיים).",
+      "ידע כללי בלבד:",
+      ctx.guestKnowledge || "",
+      systemKb,
+    ]
+      .filter((s) => s != null && String(s).trim() !== "")
+      .join("\n");
   }
 
   const lines = [
     "מצב: משתמש מחובר. שמות ומזהים אישיים אינם מועברים לבלוק זה.",
   ];
+  if (systemKb) lines.push(systemKb);
 
   const reports = getReportsArray(ctx);
   if (reports.length === 0) {
@@ -673,12 +756,19 @@ function buildTrivialSocialReplyHe(contextObject) {
 }
 
 /**
- * שאלה על יכולות העוזר — כולל פנייה בלשון נקבה ("מה את יודעת") ו"מה עוד את יודע"
+ * שאלה על יכולות — העוזר/המערכת/האפליקציה (לא סיכום מספרים מהדוח)
  */
 function wantsCapabilityOrientationQuestion(msg) {
   const t = (msg || "").trim();
   if (!t) return false;
   return (
+    /מה\s+המערכת\s+(יודעת|יודע|עושה|מאפשרת|מציעה)(\s+לעשות)?/i.test(t) ||
+    /מה\s+האפליקציה\s+(יודעת|עושה|מאפשרת|מציעה)(\s+לעשות)?/i.test(t) ||
+    /מה\s+(זאת|זו)\s+המערכת|מה\s+המערכת\s+הזאת/i.test(t) ||
+    /יכולות\s+(של\s+)?(ה)?(מערכת|אפליקציה|אתר)/i.test(t) ||
+    /מה\s+אפשר\s+לעשות\s+(במערכת|באפליקציה|כאן|פה)/i.test(t) ||
+    /איך\s+עובד(ת)?\s+(ה)?מערכת|איך\s+המערכת\s+עובדת/i.test(t) ||
+    /למה\s+משמש(ת)?\s+(ה)?מערכת|למה\s+קיימ(ת)?\s+(ה)?מערכת/i.test(t) ||
     /מה\s+את\s+עוד\s+יודע/i.test(t) ||
     /מה\s+עוד\s+את\s+יודע/i.test(t) ||
     /מה\s+(עוד\s+)?(אתה|את)\s+(יודע|יודעת)(\s+לעשות)?/i.test(t) ||
@@ -692,10 +782,119 @@ function wantsCapabilityOrientationQuestion(msg) {
     /מה\s+(אתה|את)\s+יכול(ה)?(\s+לעשות)?/i.test(t) ||
     /מה\s+השירות/i.test(t) ||
     /עוד\s+משהו\s+ש(אתה|את)\s+/i.test(t) ||
+    /what\s+does\s+(the\s+)?(app|system)\s+do/i.test(t) ||
+    /what\s+can\s+(the\s+)?(app|system)/i.test(t) ||
     /what\s+else\s+can\s+you\s+do/i.test(t) ||
     /what\s+can\s+you\s+do/i.test(t) ||
     /how\s+can\s+you\s+help/i.test(t)
   );
+}
+
+/**
+ * איך **אני** מגיש מול רשות המיסים — תהליך חיצוני (לא "האם האפליקציה מגישה")
+ */
+function wantsOfficialFilingHowToQuestion(msg) {
+  const t = (msg || "").trim();
+  if (!t) return false;
+  const raContext =
+    /מס\s*הכנסה|רשות\s+המיסים|דוח\s*מס|הגש(ה|ות)|בקש(ה|ות)|החזר\s*מס|שע[״\"]?ם|טופס\s*106/i.test(
+      t,
+    );
+  if (!raContext) return false;
+  return (
+    /איך\s+(אני|אנחנו|אפשר|עושים|מגישים|להגיש|מבצעים)/i.test(t) ||
+    /מה\s+התהליך|מה\s+צריך\s+לעשות\s+(כדי\s+)?(להגיש|לשלוח)/i.test(t) ||
+    /איפה\s+(מגישים|שולחים|מגישים\s+את)/i.test(t) ||
+    /באיזה\s+(אתר|מקום)\s+(מגישים|שולחים)/i.test(t) ||
+    /איזה\s+צעדים.{0,40}(הגשה|רשות|מס)/i.test(t) ||
+    /how\s+do\s+i\s+(file|submit)/i.test(t) ||
+    /how\s+to\s+submit/i.test(t)
+  );
+}
+
+/**
+ * האם **האפליקציה/המערכת** מגישה בשם המשתמש — תשובת "לא" קצרה (בלי לחסום שאלות "איך אני מגיש")
+ */
+function wantsAppDoesNotSubmitToRaQuestion(msg) {
+  const t = (msg || "").trim();
+  if (!t) return false;
+  if (wantsOfficialFilingHowToQuestion(t)) return false;
+  if (
+    /מגישים?\s+(את\s+)?(ה)?דוח|הגש(ה|ות)\s+(של\s+)?(ה)?דוח|שולחים?\s+(את\s+)?(ה)?דוח/i.test(
+      t,
+    )
+  ) {
+    return true;
+  }
+  if (
+    /(מגיש|שולח|מעביר).{0,50}(לרשות|למס\s*הכנסה|לרשות\s+המיסים|רשות\s+המיסים)/i.test(
+      t,
+    )
+  ) {
+    return true;
+  }
+  if (
+    /האם\s+(אתם|אתה|את|המערכת|האפליקציה|זה)\b/i.test(t) &&
+    /(מגיש|שולח|מעביר|מוגש|מועבר)/i.test(t) &&
+    /(דוח|106|רשות|מס\s*הכנסה|שע[״\"]?ם)/i.test(t)
+  ) {
+    return true;
+  }
+  if (
+    /חיבור\s+(ל)?רשות|אינטגרציה\s+(עם\s+)?רשות|ממשק\s+(עם\s+)?(רשות|שע[״\"]?ם)|מתחברים?\s+(ל)?שע[״\"]?ם/i.test(
+      t,
+    )
+  ) {
+    return true;
+  }
+  if (
+    /\b(do\s+you|does\s+(the\s+)?(app|system))\s+file\b/i.test(t) ||
+    /\bsubmit\b.{0,40}\b(tax|return|irs|authority)\b/i.test(t)
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function buildOfficialFilingScopeReplyHe(contextObject) {
+  const lines = [
+    "**לא** — המערכת **אינה** מגישה בשמך דוח למס הכנסה או לרשות המיסים, ואינה מחוברת להגשה רשמית או לשליחה אוטומטית של הדוח לרשות.",
+    "",
+    "**מה כן:** ניתן להעלות טופס 106 או להזין נתונים, לקבל **חישוב משוער**, לצפות בפירוט ולשמור דוח **באפליקציה** (אצלך בחשבון). ההגשה הרשמית מול רשות המיסים היא **באחריותך**, דרך הערוצים הרשמיים שלהם (למשל אתר שע\"ם).",
+    "",
+    "תזכורת: חישוב משוער — לא ייעוץ מס, ולא מחליף החלטת רשות המיסים.",
+  ];
+  const n = getReportsArray(contextObject || {}).length;
+  if (contextObject?.mode === "authenticated" && n > 0) {
+    lines.push(
+      "",
+      "אם רצית לדעת משהו **על המספרים בדוח** (הכנסה, החזר, מס) — כתוב במפורש מה לפרש או מה להשוות.",
+    );
+  }
+  return lines.join("\n");
+}
+
+/** איך מגישים מול רשות המיסים — לפי סעיף במדריך + קשר לאפליקציה */
+function buildOfficialFilingHowToReplyHe(contextObject) {
+  let section = getOfficialFilingHowToSectionHe();
+  if (section) {
+    section = section.replace(/^##[^\n]+\n*/, "").trim();
+  }
+  if (!section) {
+    section = [
+      "ההגשה הרשמית של דוח או בקשה מול **רשות המיסים** נעשית **מחוץ** לאפליקציה, בערוצים הרשמיים של הרשות (לרוב דרך אתר **שע\"ם** לאחר זיהוי). הפרטים המדויקים תלויים במצבך ובשנת המס — יש לוודא מול האתר הרשמי של רשות המיסים או עם רואה חשבון.",
+      "",
+      "האפליקציה **מס החזר** עוזרת להכין **הערכה** לפי נתונים שתזין (טופס 106 וכו') ולשמור דוח **אצלך**; היא **אינה** מחליפה הגשה לרשות.",
+    ].join("\n");
+  }
+  const parts = [
+    section,
+    "",
+    "**בקצרה מהאפליקציה:** חישוב ושמירת דוח — מסך [העלאת מסמכים](/incomes); צפייה בדוחות שמורים — [היסטוריה](/history).",
+    "",
+    "תזכורת: אין כאן ייעוץ מס או הוראה משפטית מחייבת — רק כיוון כללי.",
+  ];
+  return parts.join("\n");
 }
 
 /** כיוון משתמש: מה העוזר יודע + שאלת הבהרה + דוגמאות */
@@ -784,6 +983,19 @@ function generateMockReply({ userMessage, contextObject }) {
     };
   }
 
+  if (wantsOfficialFilingHowToQuestion(msg)) {
+    return {
+      reply: buildOfficialFilingHowToReplyHe(contextObject),
+      usedContext: true,
+    };
+  }
+  if (wantsAppDoesNotSubmitToRaQuestion(msg)) {
+    return {
+      reply: buildOfficialFilingScopeReplyHe(contextObject),
+      usedContext: true,
+    };
+  }
+
   const trivialOffTopic =
     /מזג\s*אוויר|כדורגל|פוליטיק|סרט\s|מסעדה/i.test(msg);
   if (contextObject.mode === "guest" && trivialOffTopic) {
@@ -811,6 +1023,12 @@ function generateMockReply({ userMessage, contextObject }) {
       return {
         reply:
           "לפי המידע הכללי במערכת: ניתן להעלות קובץ PDF של טופס 106 דרך \"העלאת מסמכים\" אחרי התחברות, או למלא את השדות ידנית. החילוץ מהקובץ תלוי באיכות הטופס.",
+        usedContext: true,
+      };
+    }
+    if (wantsConceptualTaxRefundQuestion(msg)) {
+      return {
+        reply: buildConceptualTaxRefundReplyHe(contextObject),
         usedContext: true,
       };
     }
@@ -853,6 +1071,13 @@ function generateMockReply({ userMessage, contextObject }) {
       num(calc.refund);
     const inc = num(td.income);
     const paid = num(td.taxPaid);
+
+    if (wantsConceptualTaxRefundQuestion(msg)) {
+      return {
+        reply: buildConceptualTaxRefundReplyHe(contextObject),
+        usedContext: true,
+      };
+    }
 
     if (/החזר|כמה.*אקבל|סכום.*החזר/i.test(msg)) {
       if (refund != null) {
@@ -963,6 +1188,8 @@ function tryDataDrivenFallback(msg, contextObject) {
   const agg = tryAggregateReportsReply(m, contextObject);
   if (agg) return agg;
 
+  if (wantsConceptualTaxRefundQuestion(m)) return null;
+
   const r = contextObject.latestReport;
   const td = r.taxData || {};
   const calc = r.calculation || {};
@@ -997,7 +1224,15 @@ function tryDataDrivenFallback(msg, contextObject) {
     ].join("\n");
   }
 
-  if (/החזר|חזר מס|כמה יחזר/i.test(m) && refund != null) {
+  const asksRefundAmountFromReport =
+    /כמה\s+(יהיה\s+)?החזר|מה\s+ההחזר\b|ההחזר\s+שלי|החזר\s+שלי|כמה\s+יחזר|מה\s+מגיע\s+לי|מה\s+החזר\s+בדוח|הדוח\s+האחרון[^\n]{0,50}החזר/i.test(
+      m,
+    );
+  if (
+    asksRefundAmountFromReport &&
+    /החזר|חזר מס|כמה יחזר/i.test(m) &&
+    refund != null
+  ) {
     return `לפי הדוח האחרון שלך, ההחזר המשוער הוא בערך ${refund.toLocaleString("he-IL")} ₪.${tail}`;
   }
   if (/הכנס|שכר|משכורת/i.test(m) && inc != null) {
@@ -1101,6 +1336,11 @@ async function generateChatReply({
   const hasReports = reportsList.length > 0;
   const aggQuestion = wantsAggregateOrSumQuestion(userMessage);
   const capQuestion = wantsCapabilityOrientationQuestion(userMessage);
+  const filingHowToQuestion = wantsOfficialFilingHowToQuestion(userMessage);
+  const appSubmitCapabilityQuestion =
+    wantsAppDoesNotSubmitToRaQuestion(userMessage);
+  const conceptualRefundQuestion =
+    wantsConceptualTaxRefundQuestion(userMessage);
   const explicitUiCategory = normalizeChatCategory(chatCategoryHint) != null;
 
   let gateConfidence = classified.confidence;
@@ -1120,6 +1360,9 @@ async function generateChatReply({
     explicitUiCategory ||
     aggQuestion ||
     capQuestion ||
+    filingHowToQuestion ||
+    appSubmitCapabilityQuestion ||
+    conceptualRefundQuestion ||
     recentClarificationCount(historyMessages) >= 2;
 
   if (!skipIntentClarify) {
@@ -1139,6 +1382,33 @@ async function generateChatReply({
         intentConfidence: Math.round(gateConfidence * 1000) / 1000,
       };
     }
+  }
+
+  if (appSubmitCapabilityQuestion) {
+    return {
+      reply: buildOfficialFilingScopeReplyHe(contextObject).trim(),
+      mode: contextObject.mode === "guest" ? "general" : "personalized",
+      systemInstructions: SYSTEM_INSTRUCTIONS_HE,
+      engine: "filing_scope",
+      category: resolvedCategory,
+      needsClarification: false,
+      intentConfidence: Math.round(classified.confidence * 1000) / 1000,
+    };
+  }
+
+  if (capQuestion) {
+    return {
+      reply: buildCapabilityOrientationReply(
+        contextObject,
+        userMessage,
+      ).trim(),
+      mode: contextObject.mode === "guest" ? "general" : "personalized",
+      systemInstructions: SYSTEM_INSTRUCTIONS_HE,
+      engine: "capability_orientation",
+      category: resolvedCategory,
+      needsClarification: false,
+      intentConfidence: Math.round(classified.confidence * 1000) / 1000,
+    };
   }
 
   let reply = null;
@@ -1230,17 +1500,6 @@ async function generateChatReply({
       engine === "openai" || String(engine).startsWith("openai")
         ? "openai+aggregate_math"
         : "aggregate_math";
-  }
-
-  const llmGaveReply =
-    engine === "openai" || String(engine).startsWith("openai");
-  if (
-    wantsCapabilityOrientationQuestion(userMessage) &&
-    !aggregateReply &&
-    !(isChatLlmEnabled() && llmGaveReply)
-  ) {
-    reply = buildCapabilityOrientationReply(contextObject, userMessage);
-    engine = "capability_orientation";
   }
 
   return {
