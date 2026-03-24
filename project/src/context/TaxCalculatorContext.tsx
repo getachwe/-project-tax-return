@@ -7,11 +7,16 @@ import {
 } from "react";
 
 // Define the tax data structure
+/** מקור הנתונים: העלאת 106 מול מילוי ידני (מניעת בלבול עם hasFormData ישן מטיוטה) */
+export type TaxDataSource = "manual" | "upload";
+
 export type TaxData = {
   income: number;
   taxPaid: number;
   taxCredits: number;
   hasFormData?: boolean;
+  /** מקור אמת להצגה; אם חסר — נגזר מ-hasFormData בטיוטות ישנות */
+  dataSource?: TaxDataSource;
   children?: number;
   academicDegree?: boolean;
   newImmigrant?: boolean;
@@ -19,24 +24,46 @@ export type TaxData = {
   maritalStatus?: string;
 } & Record<string, unknown>;
 
+/** טיוטת השלמה אחרי העלאה כשהשרת דורש השלמת שדות — מוצגת בשלב 2 עם הסטפר */
+export type PendingMissingUpload = {
+  extractedData: Record<string, string | number | undefined>;
+  missingValues: Record<string, string | number>;
+};
+
 // Define the context structure
 interface TaxCalculatorContextType {
   currentStep: number;
   taxData: TaxData;
   setTaxData: (data: TaxData) => void;
+  /** עדכון שלב ידני (למשל אחרי מעבר לתוצאות כדי שלא יישאר 3 ב-localStorage) */
+  setCalculatorStep: (step: number) => void;
   goToNextStep: () => void;
   goToPreviousStep: () => void;
   resetCalculator: () => void;
+  pendingMissingUpload: PendingMissingUpload | null;
+  setPendingMissingUpload: (state: PendingMissingUpload | null) => void;
+  patchPendingMissingUploadField: (
+    id: string,
+    value: string | number | boolean
+  ) => void;
 }
 
 // Default tax data
-const defaultTaxData: TaxData = {
+export const defaultTaxData: TaxData = {
   income: 0,
   taxPaid: 0,
   taxCredits: 2.25, // Default for a working person in Israel
   hasFormData: false,
+  dataSource: "manual",
   maritalStatus: "single",
 };
+
+/** האם הנתונים נובעים מהעלאת טופס (לא ממילוי ידני בלבד) */
+export function isTaxDataFromUpload(td: Pick<TaxData, "dataSource" | "hasFormData">): boolean {
+  if (td.dataSource === "upload") return true;
+  if (td.dataSource === "manual") return false;
+  return !!td.hasFormData;
+}
 
 // Create the context
 const TaxCalculatorContext = createContext<
@@ -49,6 +76,25 @@ export const TaxCalculatorProvider: React.FC<{ children: ReactNode }> = ({
 }) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [taxData, setTaxData] = useState<TaxData>(defaultTaxData);
+  const [pendingMissingUpload, setPendingMissingUpload] =
+    useState<PendingMissingUpload | null>(null);
+
+  const patchPendingMissingUploadField = (
+    id: string,
+    value: string | number | boolean
+  ) => {
+    setPendingMissingUpload((prev) =>
+      prev
+        ? {
+            ...prev,
+            missingValues: {
+              ...prev.missingValues,
+              [id]: typeof value === "boolean" ? String(value) : value,
+            },
+          }
+        : null
+    );
+  };
 
   // Load draft from localStorage on mount
   useEffect(() => {
@@ -56,9 +102,20 @@ export const TaxCalculatorProvider: React.FC<{ children: ReactNode }> = ({
       const raw = localStorage.getItem("tax_return_draft");
       const rawStep = localStorage.getItem("tax_return_step");
       if (raw) {
-        const parsed = JSON.parse(raw);
+        const parsed = JSON.parse(raw) as Partial<TaxData>;
         if (parsed && typeof parsed === "object") {
-          setTaxData({ ...defaultTaxData, ...parsed });
+          const dataSource: TaxDataSource =
+            parsed.dataSource === "upload" || parsed.dataSource === "manual"
+              ? parsed.dataSource
+              : parsed.hasFormData
+                ? "upload"
+                : "manual";
+          setTaxData({
+            ...defaultTaxData,
+            ...parsed,
+            dataSource,
+            hasFormData: dataSource === "upload",
+          });
         }
       }
       if (rawStep) {
@@ -102,9 +159,16 @@ export const TaxCalculatorProvider: React.FC<{ children: ReactNode }> = ({
     setCurrentStep((prev) => Math.max(prev - 1, 1));
   };
 
+  const setCalculatorStep = (step: number) => {
+    const n = Math.floor(Number(step));
+    if (Number.isNaN(n)) return;
+    setCurrentStep(Math.max(1, Math.min(3, n)));
+  };
+
   const resetCalculator = () => {
     setCurrentStep(1);
     setTaxData(defaultTaxData);
+    setPendingMissingUpload(null);
     try {
       localStorage.removeItem("tax_return_draft");
       localStorage.removeItem("tax_return_step");
@@ -124,9 +188,13 @@ export const TaxCalculatorProvider: React.FC<{ children: ReactNode }> = ({
         currentStep,
         taxData,
         setTaxData: handleSetTaxData,
+        setCalculatorStep,
         goToNextStep,
         goToPreviousStep,
         resetCalculator,
+        pendingMissingUpload,
+        setPendingMissingUpload,
+        patchPendingMissingUploadField,
       }}
     >
       {children}

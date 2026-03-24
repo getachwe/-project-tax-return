@@ -66,6 +66,7 @@ function createApp() {
   app.use("/api", lazyRoute(() => require("./routes/reports")));
   app.use("/api", lazyRoute(() => require("./routes/calculate")));
   app.use("/api", lazyRoute(() => require("./routes/simulate")));
+  app.use("/api", lazyRoute(() => require("./routes/chat")));
 
   return app;
 }

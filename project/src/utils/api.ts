@@ -254,6 +254,80 @@ export async function apiSendTaxReturnEmail(
   return res.json();
 }
 
+export type ChatApiResponse = {
+  reply: string;
+  mode: "personalized" | "general";
+  disclaimer: string;
+  engine?: string;
+  conversationId?: string;
+  guestSessionId?: string;
+  /** כמה דוחות נטענו להקשר בבקשה זו */
+  reportsInContext?: number;
+  /** false כשטבלאות chat_* לא קיימות ב-Supabase — אין שמירת היסטוריה */
+  chatDbAvailable?: boolean;
+  /** קטגוריית ניתוח (מפרט הצ'אט) */
+  category?: string;
+  /** נשלח כשהשרת מבקש הבהרת כוונה לפני ניתוח מלא */
+  needsClarification?: boolean;
+  /** רמת ודאות סיווג כוונה (0–1), כשקיימת */
+  intentConfidence?: number;
+  /** false כשאין מפתח OpenAI בשרת — התשובות מ-mock/כללים בלבד */
+  chatLlmAvailable?: boolean;
+};
+
+export type ChatHistoryMessage = { role: "user" | "assistant"; content: string };
+
+/** צ'אט עוזר מס — Bearer אופציונלי; שיחה ב-DB עם conversationId / guestSessionId */
+export async function apiChat(
+  message: string,
+  token?: string | null,
+  opts?: {
+    conversationId?: string | null;
+    guestSessionId?: string | null;
+    /** 1–40: כמה דוחות אחרונים לשלב בהקשר ל-LLM (ברירת מחדל מהשרת) */
+    maxReports?: number;
+    /** קטגוריית ניתוח: REPORT_SUMMARY, TRENDS, … או השמט לאוטו */
+    category?: string | null;
+  },
+): Promise<ChatApiResponse> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const body: Record<string, unknown> = { message };
+  if (opts?.conversationId) body.conversationId = opts.conversationId;
+  if (opts?.guestSessionId) body.guestSessionId = opts.guestSessionId;
+  if (opts?.maxReports != null && opts.maxReports > 0) {
+    body.maxReports = opts.maxReports;
+  }
+  if (opts?.category != null && opts.category !== "") {
+    body.category = opts.category;
+  }
+  const res = await fetch(`${BASE_URL}/api/chat`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(await parseApiError(res));
+  return res.json();
+}
+
+export async function apiChatLoadMessages(
+  conversationId: string,
+  token?: string | null,
+  guestSessionId?: string | null,
+): Promise<{ messages: ChatHistoryMessage[]; chatDbAvailable?: boolean }> {
+  const params = new URLSearchParams({ conversationId });
+  if (guestSessionId) params.set("guestSessionId", guestSessionId);
+  const headers: Record<string, string> = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const res = await fetch(`${BASE_URL}/api/chat/messages?${params}`, {
+    headers,
+  });
+  if (!res.ok) throw new Error(await parseApiError(res));
+  return res.json();
+}
+
 // Calculate tax
 export async function apiCalculateTax(taxData: any): Promise<any> {
   const res = await fetch(`${BASE_URL}/api/calculate-tax`, {

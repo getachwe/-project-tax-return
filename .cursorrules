@@ -1,0 +1,41 @@
+# Tax Refund System - Design System & Implementation Rules
+
+You are an expert Frontend Developer and UI/UX Designer. Your task is to implement the Tax Refund System based strictly on the attached reference images.
+
+## Design Identity (Design Tokens)
+- **Primary Color:** Desaturated Teal/Emerald (#149B7A). Use for active states, primary buttons, and success badges.
+- **Sidebar BG:** Very pale violet/blue tint (#F0F4FF).
+- **Backgrounds:** Pure White (#FFFFFF) for main content, Light Slate (#F8FAFC) for page sections.
+- **Borders:** Subtle 1px grey (#E2E8F0).
+- **Corner Radius:** Strict 4px (Sharp/Modern).
+- **Typography:** Use 'Assistant' or 'Inter' font. RTL (Right-to-Left) alignment for Hebrew is mandatory.
+
+## Implementation Steps (Strict Order)
+
+### Step 1: Global Setup & Theme
+1. Define CSS variables or a Tailwind config file with the colors and spacing mentioned above.
+2. Set up the RTL direction for the entire app (`dir="rtl"`).
+3. Implement the Main Layout: Sidebar on the right, Header at the top, Content area on the left.
+
+### Step 2: Authentication Screen
+1. Build the split-screen login page as seen in the references.
+2. Implement the Google Auth button and the custom email login form.
+
+### Step 3: Dashboard & Results
+1. Create the Hero card with the large 12,450 ₪ amount.
+2. Build the "Status" timeline and the detailed data table with light-green highlights for the final row.
+
+### Step 4: Document Upload & History
+1. Implement the 3-step progress cards at the top of the upload page.
+2. Build the Drag & Drop zone with dashed borders.
+3. Build the History table with badges for "אושר" and "בטיפול".
+
+### Step 5: Profile & Settings
+1. Implement the tabbed interface (Account, Security, Preferences).
+2. Create the "Sensitive Area" (אזור רגיש) with the red border at the bottom.
+
+## General Coding Rules
+- Use Functional React Components with TypeScript.
+- Ensure pixel-perfect spacing (Padding/Margin) as seen in the images.
+- All labels and text must be in Hebrew.
+- No heavy shadows or rounded "Material Design" circles. Keep it sharp (4px).

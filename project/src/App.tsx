@@ -12,6 +12,7 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { DashboardLayout } from "./components/layout/DashboardLayout";
 import { Profile } from "./components/Profile";
 import { SettingsPage } from "./components/SettingsPage";
+import { AssistantPage } from "./components/AssistantPage";
 
 // Session timeout duration in milliseconds (30 minutes)
 const SESSION_TIMEOUT = 30 * 60 * 1000;
@@ -246,6 +247,7 @@ function App() {
                       <Route path="/" element={<ResultsDisplay />} />
                       <Route path="/incomes" element={<Calculator />} />
                       <Route path="/history" element={<HistoryPage />} />
+                      <Route path="/assistant" element={<AssistantPage />} />
                       <Route path="/results" element={<ResultsDisplay />} />
                       <Route
                         path="/profile"

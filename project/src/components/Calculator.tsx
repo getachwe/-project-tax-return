@@ -1,40 +1,59 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTaxCalculator } from "../context/TaxCalculatorContext";
 import { UploadForm } from "./features/upload/UploadForm";
 import { ManualForm } from "./ManualForm";
+import { MissingUploadCompletion } from "./MissingUploadCompletion";
 import { ProgressSteps } from "./ProgressSteps";
 
 export const Calculator: React.FC = () => {
-  const { currentStep, taxData } = useTaxCalculator();
+  const { currentStep, taxData, pendingMissingUpload, setCalculatorStep } =
+    useTaxCalculator();
   const navigate = useNavigate();
+  const taxDataRef = useRef(taxData);
+  taxDataRef.current = taxData;
+  const prevStepRef = useRef<number | null>(null);
 
-  // Redirect to results page when step 3 is reached
-  React.useEffect(() => {
-    console.log("Calculator useEffect - currentStep:", currentStep);
-    console.log("Calculator useEffect - taxData:", taxData);
+  // מעבר חד-פעמי 2→3: ניווט SPA לתוצאות בלי לחזור עליו בכל עדכון taxData
+  useEffect(() => {
+    const prev = prevStepRef.current;
+    prevStepRef.current = currentStep;
+    if (prev === null) return;
 
-    if (currentStep === 3) {
-      console.log(
-        "🚀 Calculator - Navigating to /results with taxData:",
-        taxData
-      );
+    if (prev === 2 && currentStep === 3) {
+      const snapshot = { ...taxDataRef.current };
       navigate("/results", {
+        replace: true,
         state: {
-          taxData: taxData,
+          taxData: snapshot,
           fromCalculator: true,
         },
       });
+      setCalculatorStep(2);
     }
-  }, [currentStep, navigate, taxData]);
+  }, [currentStep, navigate, setCalculatorStep]);
 
+  // שלב 1 – העלאה: שלושת השלבים מוצגים בתוך UploadForm (כמו בעיצוב)
+  if (currentStep === 1) {
+    return (
+      <div className="w-full max-w-none px-0 py-0">
+        <UploadForm />
+      </div>
+    );
+  }
+
+  // שלבים הבאים – שומרים על העיצוב הקיים
   return (
     <div className="w-full max-w-2xl lg:max-w-7xl mx-auto px-4 sm:px-6 lg:px-12">
       <div className="card-enhanced">
         <ProgressSteps />
         <div className="mt-6 px-2">
-          {currentStep === 1 && <UploadForm />}
-          {currentStep === 2 && <ManualForm />}
+          {currentStep === 2 &&
+            (pendingMissingUpload ? (
+              <MissingUploadCompletion />
+            ) : (
+              <ManualForm />
+            ))}
         </div>
       </div>
     </div>
