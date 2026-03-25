@@ -81,7 +81,7 @@ router.post("/reports", async (req, res) => {
 
     // Generate temp PDF
     const tempPath = getPdfPath(`report-${Date.now()}.pdf`);
-    await generateTaxPDF({ ...calculationResult, ...taxData }, tempPath);
+    await generateTaxPDF({ ...taxData, ...calculationResult }, tempPath);
 
     const fullName =
       [taxData.firstName, taxData.lastName].filter(Boolean).join(" ") ||

@@ -86,7 +86,7 @@ router.post("/send-tax-return-email", async (req, res) => {
       console.log("Generating new PDF");
       const taxResult = calculateTax(taxData);
       tempPath = getPdfPath(`tax-return-email-${Date.now()}.pdf`);
-      await generateTaxPDF({ ...taxResult, ...taxData }, tempPath);
+      await generateTaxPDF({ ...taxData, ...taxResult }, tempPath);
     }
 
     let transporter;

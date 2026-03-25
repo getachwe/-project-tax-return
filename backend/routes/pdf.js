@@ -32,7 +32,8 @@ router.post("/generate-pdf", async (req, res) => {
     }
     console.log("Tax calculation result:", taxResult);
     const tempPath = getPdfPath(`tax-return-${Date.now()}.pdf`);
-    await generateTaxPDF({ ...taxResult, ...taxData }, tempPath);
+    // taxData אחרון היה דורס מספרים מחושבים (למשל creditPoints כמחרוזת) → שגיאת toFixed ב-PDF
+    await generateTaxPDF({ ...taxData, ...taxResult }, tempPath);
 
     const fullName =
       [taxData.firstName, taxData.lastName].filter(Boolean).join(" ") ||
@@ -132,7 +133,7 @@ router.post("/generate-tax-return-pdfmake", async (req, res) => {
     const taxData = req.body;
     const taxResult = calculateTax(taxData);
     const tempPath = getPdfPath(`tax-return-make-${Date.now()}.pdf`);
-    await generateTaxPDFMake({ ...taxResult, ...taxData }, tempPath);
+    await generateTaxPDFMake({ ...taxData, ...taxResult }, tempPath);
     const fullName =
       [taxData.firstName, taxData.lastName].filter(Boolean).join(" ") ||
       taxData.employeeName ||
