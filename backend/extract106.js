@@ -8,7 +8,17 @@ const { FIELD_PATTERNS } = require("./patterns/fieldPatterns");
 const { TAX_CODES } = require("./patterns/taxCodes");
 const { getMissingFields } = require("./utils/fieldUtils");
 const { extractForm106ViaLlm, extractForm106ViaVision } = require("./services/llmForm106");
-const { fromPath } = require("pdf2pic");
+
+/** Lazy-load pdf2pic so /api/process-106 can load on Vercel if native/gm bindings fail at require-time */
+function getPdf2picFromPath() {
+  try {
+    return require("pdf2pic").fromPath;
+  } catch (err) {
+    console.warn("[extract106] pdf2pic unavailable:", err && err.message);
+    return null;
+  }
+}
+
 async function getPdfPageCount(filePath) {
   try {
     const buffer = fs.readFileSync(filePath);
@@ -55,6 +65,12 @@ async function extractTextSmart(filePath, mimetype) {
     const text = await extractTextFromPdf(filePath);
     if (text && text.replace(/\s/g, "").length > 30) {
       return text;
+    }
+    const fromPath = getPdf2picFromPath();
+    if (typeof fromPath !== "function") {
+      throw new Error(
+        "לא ניתן היה לחלץ טקסט מה-PDF (המרה לתמונה לא זמינה בשרת). נסה PDF טקסטואלי (לא סריקה) או העלה תמונות JPG/PNG של הטופס."
+      );
     }
     // PDF סרוק – ננסה OCR על דפי ה-PDF (דורש GraphicsMagick + Ghostscript במערכת)
     let lastPdfError = null;

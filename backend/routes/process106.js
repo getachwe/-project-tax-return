@@ -2,9 +2,11 @@ const express = require("express");
 const router = express.Router();
 const fs = require("fs");
 const path = require("path");
+const os = require("os");
 const multer = require("multer");
 
-const uploadsDir = path.join(__dirname, "..", "uploads");
+// Vercel / serverless: only os.tmpdir() is writable — repo "uploads" causes multer EACCES → 500
+const uploadsDir = path.join(os.tmpdir(), "tax-return-106-uploads");
 try {
   fs.mkdirSync(uploadsDir, { recursive: true });
 } catch (_) {}
