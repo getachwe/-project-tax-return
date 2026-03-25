@@ -74,7 +74,7 @@ const he: Dict = {
   "nav.history": "היסטוריה",
   "nav.settings": "הגדרות",
   "nav.profile": "פרופיל",
-  "app.title": "מס החזר",
+  "app.title": "החזר מס",
   "app.subtitle": "החזר מס אישי",
   "app.brand": "ארכיטקט פיננסי",
   "header.dashboard": "דשבורד",

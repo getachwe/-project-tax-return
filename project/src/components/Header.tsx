@@ -12,10 +12,18 @@ import { Dialog } from "@headlessui/react";
 import { AuthPanel } from "./auth/AuthPanel";
 import { useI18n } from "../i18n/useI18n";
 import { BrandLockup } from "./ui/BrandMark";
+import { exitGuestExploreSession } from "../utils/guestMode";
 
-export type HeaderProps = { variant?: "marketing" | "dashboard" };
+export type HeaderProps = {
+  variant?: "marketing" | "dashboard";
+  /** מצב סיור ללא התחברות — מוצג באנר ופעולות אורח בשורת המשתמש */
+  guestExplore?: boolean;
+};
 
-export const Header: React.FC<HeaderProps> = ({ variant = "marketing" }) => {
+export const Header: React.FC<HeaderProps> = ({
+  variant = "marketing",
+  guestExplore = false,
+}) => {
   const { t } = useI18n();
   const { pathname } = useLocation();
   const [openDialog, setOpenDialog] = useState<
@@ -27,6 +35,12 @@ export const Header: React.FC<HeaderProps> = ({ variant = "marketing" }) => {
     const onHelp = () => setOpenDialog("help");
     window.addEventListener("dashboard:openHelp", onHelp);
     return () => window.removeEventListener("dashboard:openHelp", onHelp);
+  }, []);
+
+  useEffect(() => {
+    const openAuth = () => setOpenDialog("auth");
+    window.addEventListener("open-auth", openAuth);
+    return () => window.removeEventListener("open-auth", openAuth);
   }, []);
 
   useEffect(() => {
@@ -134,7 +148,7 @@ export const Header: React.FC<HeaderProps> = ({ variant = "marketing" }) => {
                 </NavLink>
               </nav>
             </div>
-            <DashboardUserBar />
+            <DashboardUserBar guestExplore={guestExplore} />
           </>
         ) : (
           <>
@@ -162,6 +176,17 @@ export const Header: React.FC<HeaderProps> = ({ variant = "marketing" }) => {
           </>
         )}
       </div>
+
+      {variant === "dashboard" && guestExplore && (
+        <div
+          className="bg-amber-50 border-b border-amber-200 text-amber-950 text-xs sm:text-sm px-4 py-2 text-center"
+          dir="rtl"
+        >
+          <span className="font-semibold">מצב אורח:</span> אין שמירת דוחות
+          בשרת ואין טיוטת מס בדפדפן — לניסוי המערכת בלבד. סגירת הטאב מסיימת את
+          הסשן.
+        </div>
+      )}
 
       <Dialog
         open={openDialog === "help"}
@@ -276,7 +301,9 @@ export const Header: React.FC<HeaderProps> = ({ variant = "marketing" }) => {
   );
 };
 
-const DashboardUserBar: React.FC = () => {
+const DashboardUserBar: React.FC<{ guestExplore?: boolean }> = ({
+  guestExplore = false,
+}) => {
   const navigate = useNavigate();
   const [token, setToken] = useState<string | null>(null);
   const [email, setEmail] = useState("");
@@ -327,6 +354,31 @@ const DashboardUserBar: React.FC = () => {
       window.removeEventListener("auth:loggedOut", onLoggedOut);
     };
   }, []);
+
+  if (guestExplore && !token) {
+    return (
+      <div className="flex items-center gap-2 shrink-0" dir="rtl">
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new CustomEvent("open-auth"))}
+          className="text-sm font-semibold text-[#006D4E] hover:underline px-2 py-1 rounded-lg"
+        >
+          התחברות
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            exitGuestExploreSession();
+            window.dispatchEvent(new CustomEvent("auth:loggedOut"));
+            navigate("/");
+          }}
+          className="text-sm rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-amber-900 hover:bg-amber-100"
+        >
+          סיום סיור
+        </button>
+      </div>
+    );
+  }
 
   if (!token) return null;
 

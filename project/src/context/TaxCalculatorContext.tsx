@@ -5,6 +5,9 @@ import {
   useEffect,
   ReactNode,
 } from "react";
+import {
+  isGuestExploreSession,
+} from "../utils/guestMode";
 
 // Define the tax data structure
 /** מקור הנתונים: העלאת 106 מול מילוי ידני (מניעת בלבול עם hasFormData ישן מטיוטה) */
@@ -96,9 +99,10 @@ export const TaxCalculatorProvider: React.FC<{ children: ReactNode }> = ({
     );
   };
 
-  // Load draft from localStorage on mount
+  // Load draft from localStorage on mount (לא באורח — בלי טיוטה בדפדפן)
   useEffect(() => {
     try {
+      if (isGuestExploreSession()) return;
       const raw = localStorage.getItem("tax_return_draft");
       const rawStep = localStorage.getItem("tax_return_step");
       if (raw) {
@@ -132,6 +136,7 @@ export const TaxCalculatorProvider: React.FC<{ children: ReactNode }> = ({
   // Autosave draft on changes
   useEffect(() => {
     try {
+      if (isGuestExploreSession()) return;
       localStorage.setItem("tax_return_draft", JSON.stringify(taxData));
     } catch {
       // ignore localStorage errors
@@ -140,11 +145,29 @@ export const TaxCalculatorProvider: React.FC<{ children: ReactNode }> = ({
 
   useEffect(() => {
     try {
+      if (isGuestExploreSession()) return;
       localStorage.setItem("tax_return_step", String(currentStep));
     } catch {
       // ignore localStorage errors
     }
   }, [currentStep]);
+
+  // איפוס נתונים וטיוטה כשנכנסים למצב אורח
+  useEffect(() => {
+    const onGuestEntered = () => {
+      setCurrentStep(1);
+      setTaxData(defaultTaxData);
+      setPendingMissingUpload(null);
+      try {
+        localStorage.removeItem("tax_return_draft");
+        localStorage.removeItem("tax_return_step");
+      } catch {
+        /* ignore */
+      }
+    };
+    window.addEventListener("guest:entered", onGuestEntered);
+    return () => window.removeEventListener("guest:entered", onGuestEntered);
+  }, []);
 
   const goToNextStep = () => {
     console.log("🔄 goToNextStep called, current step:", currentStep);

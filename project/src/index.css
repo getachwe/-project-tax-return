@@ -5,7 +5,7 @@
 :root {
   font-family: "Assistant", "Heebo", system-ui, -apple-system, BlinkMacSystemFont,
     "Segoe UI", sans-serif;
-  /* Design tokens — מס החזר / ארכיטקט פיננסי */
+  /* Design tokens — החזר מס / ארכיטקט פיננסי */
   --background: 210 20% 98%;
   --foreground: 222 47% 11%;
   --card: 0 0% 100%;

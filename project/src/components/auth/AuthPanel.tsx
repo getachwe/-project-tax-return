@@ -21,6 +21,7 @@ import { SetNewPassword } from "./SetNewPassword";
 import { BrandLockup } from "../ui/BrandMark";
 import { TaxAssistantChat } from "../assistant/TaxAssistantChat";
 import { useI18n } from "../../i18n/useI18n";
+import { enterGuestExploreSession } from "../../utils/guestMode";
 
 export const AuthPanel: React.FC = () => {
   const navigate = useNavigate();
@@ -125,6 +126,12 @@ export const AuthPanel: React.FC = () => {
       setMessage(e instanceof Error ? e.message : String(e));
       setLoading(false);
     }
+  }
+
+  function onContinueGuest() {
+    enterGuestExploreSession();
+    window.dispatchEvent(new CustomEvent("guest:entered"));
+    navigate("/incomes", { replace: true });
   }
 
   function onSignOut() {
@@ -341,6 +348,15 @@ export const AuthPanel: React.FC = () => {
                       />
                     </svg>
                     <span>התחברות עם Google</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={onContinueGuest}
+                    disabled={loading}
+                    className="w-full py-3 px-4 rounded-lg border-2 border-dashed border-[#006D4E]/40 bg-[#f8fafc] dark:bg-slate-900/40 text-[#006D4E] dark:text-emerald-400 font-semibold text-sm hover:bg-[#006D4E]/[0.08] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    המשך כאורח — ללא הרשמה (ללא שמירת נתונים)
                   </button>
 
                   <div className="relative flex items-center">

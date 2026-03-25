@@ -13,6 +13,11 @@ import { DashboardLayout } from "./components/layout/DashboardLayout";
 import { Profile } from "./components/Profile";
 import { SettingsPage } from "./components/SettingsPage";
 import { AssistantPage } from "./components/AssistantPage";
+import { GuestAccountPlaceholder } from "./components/GuestAccountPlaceholder";
+import {
+  exitGuestExploreSession,
+  GUEST_EXPLORE_SESSION_KEY,
+} from "./utils/guestMode";
 
 // Session timeout duration in milliseconds (30 minutes)
 const SESSION_TIMEOUT = 30 * 60 * 1000;
@@ -21,6 +26,14 @@ const WARNING_BEFORE_TIMEOUT = 5 * 60 * 1000;
 
 function App() {
   const [token, setToken] = useState<string | null>(null);
+  const [guestMode, setGuestMode] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return sessionStorage.getItem(GUEST_EXPLORE_SESSION_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
   const [showTimeoutWarning, setShowTimeoutWarning] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const warningTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -39,6 +52,8 @@ function App() {
 
   // Function to clear session
   const clearSession = () => {
+    exitGuestExploreSession();
+    setGuestMode(false);
     localStorage.removeItem("authToken");
     localStorage.removeItem("lastActivity");
     setToken(null);
@@ -126,6 +141,8 @@ function App() {
     };
 
     const onLoggedIn: EventListener = () => {
+      exitGuestExploreSession();
+      setGuestMode(false);
       const newToken = localStorage.getItem("authToken");
       if (newToken) {
         setToken(newToken);
@@ -134,10 +151,16 @@ function App() {
     };
 
     const onLoggedOut: EventListener = () => {
+      exitGuestExploreSession();
+      setGuestMode(false);
       setToken(null);
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
+    };
+
+    const onGuestEntered: EventListener = () => {
+      setGuestMode(true);
     };
 
     // Add activity listeners
@@ -156,6 +179,7 @@ function App() {
     window.addEventListener("storage", onStorage);
     window.addEventListener("auth:loggedIn", onLoggedIn);
     window.addEventListener("auth:loggedOut", onLoggedOut);
+    window.addEventListener("guest:entered", onGuestEntered);
 
     return () => {
       activityEvents.forEach((event) => {
@@ -164,6 +188,7 @@ function App() {
       window.removeEventListener("storage", onStorage);
       window.removeEventListener("auth:loggedIn", onLoggedIn);
       window.removeEventListener("auth:loggedOut", onLoggedOut);
+      window.removeEventListener("guest:entered", onGuestEntered);
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
@@ -223,7 +248,7 @@ function App() {
 
           <Routes>
             <Route path="/auth/callback" element={<GoogleCallback />} />
-            {!token ? (
+            {!(token || guestMode) ? (
               <Route
                 path="/*"
                 element={
@@ -242,7 +267,7 @@ function App() {
               <Route
                 path="/*"
                 element={
-                  <DashboardLayout>
+                  <DashboardLayout sessionToken={token}>
                     <Routes>
                       <Route path="/" element={<ResultsDisplay />} />
                       <Route path="/incomes" element={<Calculator />} />
@@ -251,11 +276,23 @@ function App() {
                       <Route path="/results" element={<ResultsDisplay />} />
                       <Route
                         path="/profile"
-                        element={<Profile token={token} />}
+                        element={
+                          token ? (
+                            <Profile token={token} />
+                          ) : (
+                            <GuestAccountPlaceholder title="פרופיל" />
+                          )
+                        }
                       />
                       <Route
                         path="/settings"
-                        element={<SettingsPage token={token} />}
+                        element={
+                          token ? (
+                            <SettingsPage token={token} />
+                          ) : (
+                            <GuestAccountPlaceholder title="הגדרות" />
+                          )
+                        }
                       />
                     </Routes>
                   </DashboardLayout>

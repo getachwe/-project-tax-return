@@ -6,7 +6,8 @@ import { useLocation } from "react-router-dom";
 
 export const DashboardLayout: React.FC<{
   children: React.ReactNode;
-}> = ({ children }) => {
+  sessionToken: string | null;
+}> = ({ children, sessionToken }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { t } = useI18n();
   const location = useLocation();
@@ -28,7 +29,10 @@ export const DashboardLayout: React.FC<{
     <div className="min-h-screen bg-[#f4f6fa]">
       {/* Top bar */}
       <div className="sticky top-0 z-40">
-        <Header variant="dashboard" />
+        <Header
+          variant="dashboard"
+          guestExplore={!sessionToken}
+        />
       </div>
 
       <div

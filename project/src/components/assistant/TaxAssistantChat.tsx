@@ -10,6 +10,15 @@ const LS_USER_CONV = "taxChat_user_conversationId";
 const LS_GUEST_CONV = "taxChat_guest_conversationId";
 const LS_GUEST_SID = "taxChat_guest_sessionId";
 
+/** צ'אט ללא משתמש מחובר — אורח במסך התחברות או אורח בדשבורד */
+function isEphemeralGuestChat(
+  variant: "guest" | "dashboard",
+): boolean {
+  if (variant === "guest") return true;
+  if (typeof window === "undefined") return false;
+  return variant === "dashboard" && !localStorage.getItem("authToken");
+}
+
 function getUserIdFromToken(raw: string | null): string | null {
   if (!raw) return null;
   try {
@@ -25,7 +34,7 @@ function getUserIdFromToken(raw: string | null): string | null {
 /** מזהה שיחה נפרד לכל משתמש מחובר — נשמר בין כניסות לעמוד העוזר */
 function readStoredConversationId(isGuestUi: boolean): string | null {
   if (typeof window === "undefined") return null;
-  if (isGuestUi) return localStorage.getItem(LS_GUEST_CONV);
+  if (isGuestUi) return sessionStorage.getItem(LS_GUEST_CONV);
   const token = localStorage.getItem("authToken");
   const sub = getUserIdFromToken(token);
   if (sub) {
@@ -60,8 +69,8 @@ function persistUserConversationId(
 function clearChatLocalStorage(isGuestUi: boolean) {
   if (typeof window === "undefined") return;
   if (isGuestUi) {
-    localStorage.removeItem(LS_GUEST_CONV);
-    localStorage.removeItem(LS_GUEST_SID);
+    sessionStorage.removeItem(LS_GUEST_CONV);
+    sessionStorage.removeItem(LS_GUEST_SID);
   } else {
     const token = localStorage.getItem("authToken");
     const sub = getUserIdFromToken(token);
@@ -98,11 +107,13 @@ export const TaxAssistantChat: React.FC<Props> = ({
   );
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(() =>
-    readStoredConversationId(variant === "guest"),
+    readStoredConversationId(isEphemeralGuestChat(variant)),
   );
   const [guestSessionId, setGuestSessionId] = useState<string | null>(() => {
-    if (typeof window === "undefined" || variant !== "guest") return null;
-    return localStorage.getItem(LS_GUEST_SID);
+    if (typeof window === "undefined" || !isEphemeralGuestChat(variant)) {
+      return null;
+    }
+    return sessionStorage.getItem(LS_GUEST_SID);
   });
   const [bearerOk, setBearerOk] = useState(() =>
     typeof window !== "undefined" && !!localStorage.getItem("authToken"),
@@ -114,7 +125,8 @@ export const TaxAssistantChat: React.FC<Props> = ({
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const isGuestUi = variant === "guest";
+  const isGuestUi =
+    variant === "guest" || (variant === "dashboard" && !bearerOk);
 
   useEffect(() => {
     const syncAuth = () => {
@@ -150,7 +162,7 @@ export const TaxAssistantChat: React.FC<Props> = ({
         ? localStorage.getItem("authToken")
         : null;
     const cId = readStoredConversationId(isGuestUi);
-    const gSid = isGuestUi ? localStorage.getItem(LS_GUEST_SID) : null;
+    const gSid = isGuestUi ? sessionStorage.getItem(LS_GUEST_SID) : null;
 
     if (!cId || (isGuestUi && !gSid)) {
       setHistoryLoaded(true);
@@ -231,7 +243,7 @@ export const TaxAssistantChat: React.FC<Props> = ({
       if (res.conversationId) {
         setConversationId(res.conversationId);
         if (isGuestUi) {
-          localStorage.setItem(LS_GUEST_CONV, res.conversationId);
+          sessionStorage.setItem(LS_GUEST_CONV, res.conversationId);
         } else {
           const tok =
             typeof window !== "undefined"
@@ -242,7 +254,7 @@ export const TaxAssistantChat: React.FC<Props> = ({
       }
       if (isGuestUi && res.guestSessionId) {
         setGuestSessionId(res.guestSessionId);
-        localStorage.setItem(LS_GUEST_SID, res.guestSessionId);
+        sessionStorage.setItem(LS_GUEST_SID, res.guestSessionId);
       }
     },
     [isGuestUi],

@@ -13,6 +13,10 @@ import {
 import { useI18n } from "../../i18n/useI18n";
 import { useTaxCalculator } from "../../context/TaxCalculatorContext";
 import { BrandLockup } from "../ui/BrandMark";
+import {
+  exitGuestExploreSession,
+  isGuestExploreSession,
+} from "../../utils/guestMode";
 
 type Item = {
   to: string;
@@ -41,6 +45,11 @@ export const Sidebar: React.FC<{ onNavigate?: () => void }> = ({
   const { pathname } = useLocation();
   const { resetCalculator } = useTaxCalculator();
 
+  const guestOnly =
+    typeof window !== "undefined" &&
+    isGuestExploreSession() &&
+    !localStorage.getItem("authToken");
+
   const openHelp = () => {
     window.dispatchEvent(new CustomEvent("dashboard:openHelp"));
     onNavigate?.();
@@ -49,7 +58,9 @@ export const Sidebar: React.FC<{ onNavigate?: () => void }> = ({
   const handleLogout = () => {
     localStorage.removeItem("authToken");
     localStorage.removeItem("lastActivity");
+    exitGuestExploreSession();
     window.dispatchEvent(new CustomEvent("auth:loggedOut"));
+    navigate("/");
     onNavigate?.();
   };
 
@@ -130,7 +141,7 @@ export const Sidebar: React.FC<{ onNavigate?: () => void }> = ({
           className="w-full flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-red-600 hover:bg-red-50/80 transition-colors text-right font-medium"
         >
           <LogOut className="h-5 w-5" />
-          התנתקות
+          {guestOnly ? "סיום סיור" : "התנתקות"}
         </button>
       </div>
     </aside>
