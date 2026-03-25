@@ -28,6 +28,9 @@ Thumbs.db
 *.tmp
 *.swp
 
+# Uploaded user files (must never be committed)
+project/uploads/
+
 # Local prompts / Bolt (do not commit)
 chatbot_prompt.txt
 ai-chatbot-tax-system.prompt.md
