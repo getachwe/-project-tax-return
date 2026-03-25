@@ -1,160 +1,143 @@
-# Hebrew Tax Refund Calculator
+# Tax Return & Refund Calculator (Israel / Hebrew UI)
 
-A modern fullstack system for tax refund calculation, including a React (Vite + Tailwind) frontend and a Node.js (Express) backend.  
-The system enables tax refund calculations, document uploads, PDF generation, email delivery, optional AI/chat features, and a Hebrew RTL interface.
+Full-stack application for income tax refund estimation, Form 106 ingestion, PDF output, and authenticated report storage. The product surface is Hebrew (RTL); core tax logic and APIs are implemented in Node.js.
 
----
-
-## Table of Contents
-
-- [Overview](#overview)
-- [Main Technologies](#main-technologies)
-- [Project Structure](#project-structure)
-- [Installation & Running](#installation--running)
-- [Files Not in Git](#files-not-in-git)
-- [Sensitive Files](#sensitive-files)
-- [Deployment (Vercel)](#deployment-vercel)
-- [Usage Example](#usage-example)
-- [Contributing](#contributing)
+**Production:** [https://project-tax-return.vercel.app](https://project-tax-return.vercel.app)
 
 ---
 
-## Overview
+## Scope
 
-The system includes:
-
-- **Frontend**: React app with Tailwind CSS, forms, dashboard, history, and assistant UI.
-- **Backend**: Express API for tax calculations, Form 106 processing, PDF generation, reports (Supabase), and optional chat/LLM integration.
-- **Document upload**: File upload, text extraction, and optional OCR paths.
-- **Hebrew UI**: RTL layout and localized strings.
-
----
-
-## Main Technologies
-
-- React 18, Vite, TypeScript, Tailwind CSS
-- Node.js, Express, Multer, Puppeteer / PDFMake, Tesseract.js, PDF-related tooling
-- Supabase (auth, storage, reports) where configured
-- ESLint, React Hook Form, and related tooling
+| Layer | Responsibility |
+|--------|----------------|
+| **Client** (`project/`) | React 18, Vite 5, TypeScript, Tailwind. Multi-step flows, dashboard, history, optional assistant UI. |
+| **API** (`backend/`, mounted by root `server.js`) | Express routes: tax calculation, Form 106 pipeline, PDF generation, reports CRUD (Supabase), SMTP email, optional LLM/chat. |
+| **Hosting** | Vercel: static SPA + Node function; `vercel.json` routes `/api/*` to `server.js`. |
 
 ---
 
-## Project Structure
+## Tech Stack
+
+- **Frontend:** React, React Router, Headless UI, Tailwind CSS, lucide-react  
+- **Backend:** Express, multer (uploads under `os.tmpdir()` on serverless), pdf-parse / optional pdf2pic + OCR paths, Puppeteer with PDFMake fallback, Supabase JS client  
+- **Auth & data:** Supabase Auth; Storage bucket for generated PDFs; Postgres-backed `reports` where configured  
+- **Tooling:** Jest (frontend), npm workspaces-style layout (root + `project/` + `backend/`)
+
+---
+
+## Repository Layout
 
 ```
-project-tax-return/
-├── project/           # Frontend (Vite + React)
-│   ├── src/
-│   ├── public/
-│   └── package.json
-├── backend/           # Express routes, tax logic, PDF helpers, services
-│   └── package.json
-├── server.js          # Vercel / Node entry (mounts Express app + static SPA)
-├── api/               # Vercel serverless wrapper for /api routes (if used)
-├── vercel.json        # Vercel build / routing
-├── package.json       # Root scripts & shared backend deps for deploy
+.
+├── project/                 # Vite app (npm scripts: dev, build)
+├── backend/                 # Express app (local: npm start → port 4000)
+├── server.js                # Production entry: createApp() + static SPA + catch-all
+├── api/                     # Vercel catch-all handler for /api (if used in deployment)
+├── scripts/                 # e.g. copy-dist-to-public for CI
+├── vercel.json
+├── package.json             # Root install + `npm run build` for deploy bundle
 └── README.md
 ```
 
+Files intentionally **not** tracked (see `.gitignore`): local prompt drafts, `.env`, build artifacts, `node_modules`.
+
 ---
 
-## Installation & Running
+## Prerequisites
 
-### Prerequisites
+- **Node.js** 18+ (LTS recommended)  
+- **npm**  
+- **Supabase** project (Auth + Storage + DB) for full feature parity in production  
+- **SMTP** (or Mailtrap in development) for outbound email  
+- Optional: **OpenAI** API key for LLM-assisted Form 106 / chat features  
 
-- Node.js (recommended 18+)
-- npm
+---
 
-### Installation
+## Environment Variables
 
-1. Root dependencies (used for the deployed API and shared tooling):
+Configure at least the following for production (e.g. Vercel project settings). Local development typically uses `backend/.env` and/or root `.env` loaded via `dotenv`.
 
-   ```bash
-   npm install
-   ```
+| Variable | Purpose |
+|----------|---------|
+| `SUPABASE_URL`, `SUPABASE_ANON_KEY` | Client-safe Supabase |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-only: storage, row-level operations |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` (optional `SMTP_SECURE`) | Outbound mail |
+| `FRONTEND_URL` | OAuth redirects, email links |
+| `OPENAI_API_KEY`, `LLM_ENABLED` | Optional extraction / chat |
+| `AI_AGENTS_ENABLED` | Optional post-calculation pipeline |
 
-2. Frontend:
+Never commit secrets. The repository excludes `.env*` via `.gitignore`.
 
-   ```bash
-   cd project
-   npm install
-   ```
+---
 
-3. Backend (optional separate install if you run `backend` as its own app):
+## Local Development
 
-   ```bash
-   cd backend
-   npm install
-   ```
-
-4. Environment files (examples; adjust to your setup):
-
-   - `project/.env` — e.g. `VITE_API_URL` (empty in production for same-origin `/api`)
-   - `backend/.env` or root `.env` — Supabase, SMTP, optional `OPENAI_API_KEY`, etc.
-
-### Running in Development
-
-From the repo root, run frontend and API as you prefer:
+### 1. Install dependencies
 
 ```bash
-# Terminal 1 — frontend (see project/package.json for exact script)
+# API + shared root deps (matches typical Vercel install)
+npm install
+
+cd project && npm install && cd ..
+cd backend && npm install && cd ..
+```
+
+### 2. Run API and client
+
+**Option A — single command from `project/`** (uses `concurrently`):
+
+```bash
 cd project
-npm run dev
+npm run start:all
 ```
+
+This starts Vite (default `http://localhost:5173`) and `backend` on `http://localhost:4000`.
+
+**Option B — two terminals**
 
 ```bash
-# Terminal 2 — API (if you use a local Express server; script names vary by setup)
-cd backend
-npm start
+# Terminal 1
+cd backend && npm start
+
+# Terminal 2
+cd project && npm run dev
 ```
 
-Frontend dev server is typically at `http://localhost:5173` with API proxied or pointed via `VITE_API_URL`.
+Point the frontend at the API:
 
-### Building for Production
+- Leave `VITE_API_URL` unset **or** set `VITE_API_URL=http://localhost:4000` in `project/.env` if the client must target a non-default host.
 
-From the **repository root**:
+### 3. Production build (local verification)
+
+From repository root:
 
 ```bash
 npm run build
 ```
 
-This builds the frontend into `project/dist` and copies assets for static hosting as defined in `scripts/copy-dist-to-public.js` / `vercel.json`.
+Produces a deployable artifact consistent with `vercel.json` (frontend build copied for static serving).
 
 ---
 
-## Files Not in Git
+## API Overview (non-exhaustive)
 
-The following are **intentionally not tracked** (see `.gitignore`):
+| Method / Path | Description |
+|---------------|-------------|
+| `POST /api/calculate-tax` | Core refund calculation |
+| `POST /api/process-106` | Upload + extract Form 106 |
+| `POST /api/generate-pdf` | PDF generation; optional Supabase upload |
+| `POST /api/send-tax-return-email` | Attach PDF, send via SMTP |
+| `GET/POST /api/reports` | List/create reports (authenticated) |
+| `POST /api/auth/*` | Supabase-backed auth flows |
 
-- **`chatbot_prompt.txt`** — local chat / assistant prompt notes
-- **`ai-chatbot-tax-system.prompt.md`** — local system prompt draft
-- **`project/.bolt/prompt`** — Bolt IDE local prompt file
-
-Keep your own copies on your machine; they are excluded from GitHub to avoid publishing internal prompt text.
-
----
-
-## Sensitive Files
-
-- `.env` files, `node_modules`, build output, logs, and IDE folders are excluded by `.gitignore`.
-- Do not commit API keys, SMTP passwords, or Supabase service keys.
+Health check where enabled: `GET /health`.
 
 ---
 
-## Deployment (Vercel)
+## Deployment Notes (Vercel)
 
-The repo includes `vercel.json` and `server.js` for a single deployment that serves the SPA and `/api/*` on Node. Set production environment variables in the Vercel project dashboard (SMTP, Supabase, optional LLM keys, etc.).
-
----
-
-## Usage Example
-
-- Enter income and household details or upload a Form 106 (PDF/image where supported).
-- Review the refund estimate on the dashboard, download a PDF, or send it by email (when SMTP is configured).
-- Logged-in users can save reports and open them from **History**.
+- Set all required environment variables in the Vercel dashboard.  
+- Ensure OAuth redirect URLs in Supabase match the deployed origin (e.g. `https://project-tax-return.vercel.app/auth/callback`).  
+- PDF generation prefers Puppeteer; the codebase falls back to PDFMake when Chromium is unavailable in the runtime.
 
 ---
-
-## Contributing
-
-Contributions and issues are welcome. Please do not commit local prompt files or secrets—use the patterns in **Files Not in Git** and **Sensitive Files**.
