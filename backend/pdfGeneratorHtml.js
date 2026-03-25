@@ -4,10 +4,24 @@ const path = require("path");
 
 // Helper: format numbers with commas
 function formatNumber(num) {
-  return Number(num).toLocaleString("he-IL");
+  const n = Number(num);
+  return Number.isFinite(n) ? n.toLocaleString("he-IL") : "0";
+}
+
+function creditPointsDisplay(data) {
+  const n = Number(data.creditPoints);
+  return Number.isFinite(n) ? n.toFixed(2) : "0.00";
+}
+
+function creditPerPointValue(data) {
+  const cp = Number(data.creditPoints);
+  const cv = Number(data.creditValue);
+  if (!Number.isFinite(cp) || cp <= 0 || !Number.isFinite(cv)) return 0;
+  return cv / cp;
 }
 
 async function generateTaxPDFHtml(data, outputPath) {
+  const perPoint = creditPerPointValue(data);
   // HTML template with inline CSS (Heebo font, RTL, modern look)
   const html = `
   <!DOCTYPE html>
@@ -214,7 +228,7 @@ async function generateTaxPDFHtml(data, outputPath) {
     args: ["--no-sandbox"],
   });
   const page = await browser.newPage();
-  await page.setContent(html, { waitUntil: "networkidle0" });
+  await page.setContent(html, { waitUntil: "load", timeout: 30_000 });
   await page.pdf({
     path: outputPath,
     format: "A4",

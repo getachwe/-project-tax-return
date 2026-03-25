@@ -16,7 +16,20 @@ const fonts = {
 
 // Helper: format numbers with commas
 function formatNumber(num) {
-  return Number(num).toLocaleString("he-IL");
+  const n = Number(num);
+  return Number.isFinite(n) ? n.toLocaleString("he-IL") : "0";
+}
+
+function creditPointsDisplay(data) {
+  const n = Number(data.creditPoints);
+  return Number.isFinite(n) ? n.toFixed(2) : "0.00";
+}
+
+function creditPerPointValue(data) {
+  const cp = Number(data.creditPoints);
+  const cv = Number(data.creditValue);
+  if (!Number.isFinite(cp) || cp <= 0 || !Number.isFinite(cv)) return 0;
+  return cv / cp;
 }
 
 async function generateTaxPDFMake(data, outputPath) {
@@ -73,10 +86,10 @@ async function generateTaxPDFMake(data, outputPath) {
                 ],
                 ["הכנסה שנתית", `${formatNumber(data.income)} ₪`],
                 ["מס ששולם", `${formatNumber(data.taxPaid)} ₪`],
-                ["נקודות זיכוי", data.creditPoints.toFixed(2)],
+                ["נקודות זיכוי", creditPointsDisplay(data)],
                 [
                   "שווי נקודת זיכוי",
-                  `${formatNumber(data.creditValue / data.creditPoints)} ₪`,
+                  `${formatNumber(creditPerPointValue(data))} ₪`,
                 ],
                 ["סך הכל זיכוי ממס", `${formatNumber(data.creditValue)} ₪`],
                 ["מס צפוי לפי חישוב", `${formatNumber(data.netTax)} ₪`],

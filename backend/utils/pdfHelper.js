@@ -1,5 +1,7 @@
 /**
- * Generate PDF - tries Puppeteer (Html) first, falls back to pdfMake when Chromium unavailable (e.g. Render free tier).
+ * Generate PDF — tries Puppeteer (HTML) first, falls back to pdfMake on any failure.
+ * On Vercel: PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=1 → launch fails; also timeouts from
+ * networkidle0 / external fonts must not surface as 500.
  */
 const { generateTaxPDFMake } = require("../pdfGeneratorMake");
 
@@ -9,17 +11,8 @@ async function generateTaxPDF(data, outputPath) {
     await generateTaxPDFHtml(data, outputPath);
     return;
   } catch (err) {
-    const msg = (err.message || "").toLowerCase();
-    if (
-      msg.includes("chrome") ||
-      msg.includes("chromium") ||
-      msg.includes("executable")
-    ) {
-      console.log("[PDF] Puppeteer unavailable, using pdfMake fallback");
-      await generateTaxPDFMake(data, outputPath);
-      return;
-    }
-    throw err;
+    console.warn("[PDF] HTML/Puppeteer path failed, using pdfMake:", err.message);
+    await generateTaxPDFMake(data, outputPath);
   }
 }
 
