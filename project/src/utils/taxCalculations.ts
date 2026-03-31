@@ -13,8 +13,8 @@ export const calculateTaxRefund = (
     yearsSinceAliyah?: number;
   } = {}
 ) => {
-  // Value of each tax credit point in Israel (2024 data)
-  const taxDeductionPerCreditPoint = 2352;
+  // Value of each tax credit point — align with backend taxCalculator (2024+)
+  const taxDeductionPerCreditPoint = 2904;
   
   // Calculate total credit points
   const totalCreditPoints = calculateTotalCreditPoints(options);

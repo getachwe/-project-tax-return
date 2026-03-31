@@ -10,7 +10,7 @@ export const Footer: React.FC = () => {
       <div className="max-w-7xl mx-auto py-3 px-4 sm:px-8 flex flex-col md:flex-row justify-between items-center gap-4">
         <div className="text-center md:text-right">
           <p className="text-gray-600 text-sm">
-            © {new Date().getFullYear()} מחשבון החזרי מס. כל הזכויות שמורות.
+            © {new Date().getFullYear()} סימולטור להחזר מס. כל הזכויות שמורות.
           </p>
         </div>
         <div className="flex gap-5">
@@ -50,7 +50,7 @@ export const Footer: React.FC = () => {
               תנאי שימוש
             </Dialog.Title>
             <div className="text-gray-700 text-center mb-4 space-y-2 rtl">
-              <p>השימוש באתר ובמחשבון החזרי מס ניתן כשירות חינמי למשתמשים.</p>
+              <p>השימוש באתר ובסימולטור להחזר מס ניתן כשירות חינמי למשתמשים.</p>
               <p>המשתמש מתחייב להזין נתונים נכונים ומדויקים.</p>
               <p>
                 האתר אינו אחראי לכל נזק ישיר או עקיף שייגרם כתוצאה מהשימוש

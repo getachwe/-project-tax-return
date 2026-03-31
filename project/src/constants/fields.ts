@@ -2,10 +2,13 @@ export const FIELD_LABELS: Record<string, string> = {
   // נתונים עיקריים לחישוב מס
   income: "הכנסה (158)",
   taxPaid: "מס שנוכה (042)",
+  taxWithheld040: "ניכוי מס שדה 040",
+  taxWithheld043: "ניכוי מס שדה 043",
   taxCredits: "זיכויי מס (248)",
   additionalIncome: "הכנסה נוספת (045)",
   workPeriod: "תקופת עבודה",
   creditPoints: "נקודות זיכוי",
+  additionalCreditPoints: "נקודות זיכוי נוספות (הערכה ידנית)",
   children: "מספר ילדים מתחת לגיל 18",
   taxYear: "שנת המס",
   
@@ -15,6 +18,9 @@ export const FIELD_LABELS: Record<string, string> = {
   employeeId: "מספר זהות",
   birthDate: "תאריך לידה",
   maritalStatus: "מצב משפחתי",
+  filingStatus: "אופן הגשה (יחיד / גילוי משותף)",
+  spouseIncome: "הכנסת בן/בת הזוג (שנתית)",
+  spouseTaxPaid: "מס שנוכה בן/בת הזוג (סה״כ)",
   gender: "מגדר",
   address: "כתובת",
   residency: "תושבות",
@@ -36,16 +42,28 @@ export const FIELD_LABELS: Record<string, string> = {
   childAllowance: "קצבת ילדים",
   disabilityAllowance: "קצבת נכות",
   oldAgeAllowance: "קצבת זקנה",
+
+  // זכאויות נוספות (נקודות זיכוי)
+  academicDegree: "בעל/ת תואר אקדמי (נקודת זיכוי אקדמית)",
+  newImmigrant: "עולה חדש/ה (ב־3.5 השנים האחרונות)",
+  livingInPeriphery: "תושב/ת פריפריה (הטבת מס)",
+  yearsSinceAliyah: "מספר שנים מאז עלייה (לעולה חדש)",
 };
 
 export const FIELD_TOOLTIPS: Record<string, string> = {
   // נתונים עיקריים לחישוב מס
   income: "סך כל ההכנסה החייבת במס לשנה. ניתן למצוא בשדה 158 בטופס 106.",
   taxPaid: "סכום המס שנוכה בפועל מהמשכורת. מופיע בשדה 042 בטופס 106.",
+  taxWithheld040:
+    "ניכוי מס נוסף לפי שדה 040 בטופס 106 (אם קיים). נספר יחד עם 042 ו-043 לסך המס שנוכה.",
+  taxWithheld043:
+    "ניכוי מס נוסף לפי שדה 043 בטופס 106 (אם קיים). נספר יחד עם 042 ו-040 לסך המס שנוכה.",
   taxCredits: "סך נקודות הזיכוי שלך. שדה 248 בטופס 106.",
   additionalIncome: "הכנסה נוספת (למשל בונוסים, פרסים). שדה 045 בטופס 106.",
   workPeriod: "התקופה בה עבדת אצל המעסיק בשנה הנוכחית.",
   creditPoints: "מספר נקודות הזיכוי שלך.",
+  additionalCreditPoints:
+    "תוספת נקודות לפי ייעוץ מס או נסיבות שלא נספרות אוטומטית (מקסימום 5). רוב המשתמשים משאירים 0.",
   children: "מספר ילדים מתחת לגיל 18 שיש לך.",
   taxYear: "השנה עבורה מתבצע החישוב. מצוין בראש טופס 106.",
   
@@ -76,6 +94,11 @@ export const FIELD_TOOLTIPS: Record<string, string> = {
   childAllowance: "סכום קצבת ילדים (אם קיבלת).",
   disabilityAllowance: "סכום קצבת נכות (אם קיבלת).",
   oldAgeAllowance: "סכום קצבת זקנה (אם קיבלת).",
+
+  academicDegree: "סמן אם יש לך תואר אקדמי המזכה בנקודת זיכוי (0.25).",
+  newImmigrant: "סמן אם עלית לישראל ב־3.5 השנים האחרונות — נקודות זיכוי לפי שנות עישור.",
+  livingInPeriphery: "סמן אם אתה גר ביישוב הזכאי להטבת פריפריה.",
+  yearsSinceAliyah: "הזן מספר שנים מאז העלייה (1–3 נותנות נקודות שונות).",
 };
 
 export const MARITAL_OPTIONS = [
@@ -84,6 +107,11 @@ export const MARITAL_OPTIONS = [
   { value: "married", label: "נשוי/ה" },
   { value: "divorced", label: "גרוש/ה" },
   { value: "widowed", label: "אלמן/ה" },
+];
+
+export const FILING_STATUS_OPTIONS = [
+  { value: "single", label: "יחיד / נפרד" },
+  { value: "joint", label: "גילוי משותף (בני זוג)" },
 ];
 
 export const EMPLOYMENT_OPTIONS = [

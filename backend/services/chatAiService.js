@@ -18,6 +18,14 @@ const {
   getChatSystemKnowledgeContextBlock,
   getOfficialFilingHowToSectionHe,
 } = require("./chatSystemKnowledge");
+const {
+  callSkillsAnalystLlm,
+  isSkillsPipelineEnabled,
+} = require("./skills");
+const {
+  callMainPromptOrchestrator,
+  isMainPromptV1Enabled,
+} = require("./mainPromptOrchestrator");
 
 const OUT_OF_CONTEXT_HE =
   "אין מספיק מידע כדי לענות על השאלה.";
@@ -282,19 +290,15 @@ function isChatLlmEnabled() {
 }
 
 /**
+ * בניית בקשת OpenAI לצ'אט (משותף ל-stream וללא stream).
  * @param {{ role: string, content: string }[]} historyMessages
  */
-async function callOpenAiChat({
+function buildOpenAiChatRequest({
   contextObject,
   userMessage,
   historyMessages,
   chatCategory,
 }) {
-  if (!isChatLlmEnabled()) return null;
-
-  const apiKey = process.env.OPENAI_API_KEY;
-  const OpenAI = require("openai");
-  const openai = new OpenAI({ apiKey });
   const model =
     process.env.CHAT_LLM_MODEL ||
     process.env.LLM_MODEL ||
@@ -319,7 +323,7 @@ ${contextBlock}`;
     (m) =>
       m &&
       (m.role === "user" || m.role === "assistant") &&
-      typeof m.content === "string"
+      typeof m.content === "string",
   );
 
   const messages = [
@@ -337,14 +341,89 @@ ${contextBlock}`;
     Math.max(0, parseFloat(process.env.CHAT_TEMPERATURE || "0.45")),
   );
 
+  return { model, messages, temperature, max_tokens: maxTokens };
+}
+
+/**
+ * @param {{ role: string, content: string }[]} historyMessages
+ */
+async function callOpenAiChat({
+  contextObject,
+  userMessage,
+  historyMessages,
+  chatCategory,
+}) {
+  if (!isChatLlmEnabled()) return null;
+
+  const apiKey = process.env.OPENAI_API_KEY;
+  const OpenAI = require("openai");
+  const openai = new OpenAI({ apiKey });
+  const { model, messages, temperature, max_tokens } = buildOpenAiChatRequest({
+    contextObject,
+    userMessage,
+    historyMessages,
+    chatCategory,
+  });
+
   const response = await openai.chat.completions.create({
     model,
     messages,
     temperature,
-    max_tokens: maxTokens,
+    max_tokens,
   });
 
   const text = response.choices?.[0]?.message?.content?.trim();
+  return text || null;
+}
+
+/**
+ * אותה לוגיקה כמו callOpenAiChat אבל מחזירה טקסט תוך קריאה ל-onDelta על כל קטע.
+ * @param {{ onDelta: (s: string) => void } & Parameters<typeof buildOpenAiChatRequest>[0]} args
+ */
+async function callOpenAiChatStream({
+  contextObject,
+  userMessage,
+  historyMessages,
+  chatCategory,
+  onDelta,
+}) {
+  if (!isChatLlmEnabled()) return null;
+  if (typeof onDelta !== "function") {
+    return callOpenAiChat({
+      contextObject,
+      userMessage,
+      historyMessages,
+      chatCategory,
+    });
+  }
+
+  const apiKey = process.env.OPENAI_API_KEY;
+  const OpenAI = require("openai");
+  const openai = new OpenAI({ apiKey });
+  const { model, messages, temperature, max_tokens } = buildOpenAiChatRequest({
+    contextObject,
+    userMessage,
+    historyMessages,
+    chatCategory,
+  });
+
+  const stream = await openai.chat.completions.create({
+    model,
+    messages,
+    temperature,
+    max_tokens,
+    stream: true,
+  });
+
+  let full = "";
+  for await (const chunk of stream) {
+    const piece = chunk.choices?.[0]?.delta?.content ?? "";
+    if (piece) {
+      full += piece;
+      onDelta(piece);
+    }
+  }
+  const text = full.trim();
   return text || null;
 }
 
@@ -1325,7 +1404,13 @@ async function generateChatReply({
   contextObject,
   historyMessages = [],
   chatCategory: chatCategoryHint = null,
+  /** @type {null | ((chunk: string) => void)} נקרא עם קטעי טקסט בזמן אמת (OpenAI stream או תשובה שלמה בנתיבים אחרים) */
+  onStreamDelta = null,
 }) {
+  const emitStream = (s) => {
+    if (typeof onStreamDelta === "function" && s) onStreamDelta(s);
+  };
+
   const classified = classifyChatCategoryWithConfidence(
     userMessage,
     chatCategoryHint,
@@ -1371,8 +1456,10 @@ async function generateChatReply({
     }
     if (gateConfidence < 0.75) {
       const raw = buildClarificationReplyHe(hasReports);
+      const displayReply = stripClarifyTokenForDisplay(raw);
+      emitStream(displayReply);
       return {
-        reply: stripClarifyTokenForDisplay(raw),
+        reply: displayReply,
         persistedReply: raw,
         mode: contextObject.mode === "guest" ? "general" : "personalized",
         systemInstructions: SYSTEM_INSTRUCTIONS_HE,
@@ -1385,8 +1472,10 @@ async function generateChatReply({
   }
 
   if (appSubmitCapabilityQuestion) {
+    const filingReply = buildOfficialFilingScopeReplyHe(contextObject).trim();
+    emitStream(filingReply);
     return {
-      reply: buildOfficialFilingScopeReplyHe(contextObject).trim(),
+      reply: filingReply,
       mode: contextObject.mode === "guest" ? "general" : "personalized",
       systemInstructions: SYSTEM_INSTRUCTIONS_HE,
       engine: "filing_scope",
@@ -1397,11 +1486,13 @@ async function generateChatReply({
   }
 
   if (capQuestion) {
+    const capReply = buildCapabilityOrientationReply(
+      contextObject,
+      userMessage,
+    ).trim();
+    emitStream(capReply);
     return {
-      reply: buildCapabilityOrientationReply(
-        contextObject,
-        userMessage,
-      ).trim(),
+      reply: capReply,
       mode: contextObject.mode === "guest" ? "general" : "personalized",
       systemInstructions: SYSTEM_INSTRUCTIONS_HE,
       engine: "capability_orientation",
@@ -1413,18 +1504,76 @@ async function generateChatReply({
 
   let reply = null;
   let engine = "mock";
+  /** כשמופעל ai_main_prompt_v1 — קטגוריה, clarification והצעות המשך מהמודל */
+  let mainPromptMeta = null;
 
   try {
     try {
-      const llm = await callOpenAiChat({
-        contextObject,
-        userMessage,
-        historyMessages,
-        chatCategory: resolvedCategory,
-      });
-      if (llm) {
+      if (isMainPromptV1Enabled() && isChatLlmEnabled()) {
+        try {
+          const orch = await callMainPromptOrchestrator({
+            userMessage,
+            contextObject,
+            historyMessages,
+          });
+          if (orch?.ok) {
+            reply = orch.answer;
+            emitStream(reply);
+            engine = "openai+main_prompt_v1";
+            mainPromptMeta = {
+              category: orch.category,
+              needsClarification: orch.needsClarification,
+              suggestedFollowUps: orch.suggestedFollowUps,
+            };
+          }
+        } catch (orchErr) {
+          console.error("[chat] main prompt v1:", orchErr.message);
+        }
+      }
+
+      let llm = null;
+      let usedSkillsAnalyst = false;
+      if (
+        !reply &&
+        isSkillsPipelineEnabled() &&
+        contextObject.mode === "authenticated" &&
+        hasReports
+      ) {
+        try {
+          llm = await callSkillsAnalystLlm({
+            contextObject,
+            userMessage,
+            chatCategory: resolvedCategory,
+            historyMessages,
+          });
+          if (llm) {
+            usedSkillsAnalyst = true;
+            emitStream(llm);
+          }
+        } catch (skillsErr) {
+          console.error("[chat] skills analyst:", skillsErr.message);
+        }
+      }
+      if (!reply && !llm) {
+        llm =
+          typeof onStreamDelta === "function"
+            ? await callOpenAiChatStream({
+                contextObject,
+                userMessage,
+                historyMessages,
+                chatCategory: resolvedCategory,
+                onDelta: onStreamDelta,
+              })
+            : await callOpenAiChat({
+                contextObject,
+                userMessage,
+                historyMessages,
+                chatCategory: resolvedCategory,
+              });
+      }
+      if (!reply && llm) {
         reply = llm;
-        engine = "openai";
+        engine = usedSkillsAnalyst ? "openai+skills_analyst" : "openai";
       }
     } catch (err) {
       console.error("[chat] OpenAI error:", err.message);
@@ -1477,6 +1626,7 @@ async function generateChatReply({
     try {
       const mock = generateMockReply({ userMessage, contextObject });
       reply = mock.reply;
+      emitStream(reply);
       engine = "mock";
     } catch (mockErr) {
       console.error("[chat] mock failed:", mockErr);
@@ -1500,6 +1650,7 @@ async function generateChatReply({
       engine === "openai" || String(engine).startsWith("openai")
         ? "openai+aggregate_math"
         : "aggregate_math";
+    mainPromptMeta = null;
   }
 
   return {
@@ -1507,8 +1658,16 @@ async function generateChatReply({
     mode: contextObject.mode === "guest" ? "general" : "personalized",
     systemInstructions: SYSTEM_INSTRUCTIONS_HE,
     engine,
-    category: resolvedCategory,
-    needsClarification: false,
+    category: mainPromptMeta ? mainPromptMeta.category : resolvedCategory,
+    needsClarification: mainPromptMeta
+      ? !!mainPromptMeta.needsClarification
+      : false,
+    suggestedFollowUps:
+      mainPromptMeta &&
+      Array.isArray(mainPromptMeta.suggestedFollowUps) &&
+      mainPromptMeta.suggestedFollowUps.length
+        ? mainPromptMeta.suggestedFollowUps
+        : undefined,
     intentConfidence: Math.round(classified.confidence * 1000) / 1000,
   };
   } catch (outer) {

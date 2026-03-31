@@ -1,5 +1,8 @@
-// Test Supabase connection
-require('dotenv').config({ path: './backend/.env' });
+// Test Supabase connection (run from repo root: node scripts/dev/test-supabase.js)
+const path = require("path");
+require("dotenv").config({
+  path: path.join(__dirname, "..", "..", "backend", ".env"),
+});
 
 async function testSupabase() {
   console.log('Testing Supabase configuration...\n');

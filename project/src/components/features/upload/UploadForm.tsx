@@ -4,15 +4,25 @@ import {
   useTaxCalculator,
   defaultTaxData,
 } from "../../../context/TaxCalculatorContext";
+import { isGuestExploreSession } from "../../../utils/guestMode";
 import { UploadDropzone } from "./UploadDropzone";
 import { UploadTips } from "./UploadTips";
 import { UploadProgress } from "./UploadProgress";
 import Toast from "../../Toast";
 import { apiProcess106 } from "../../../utils/api";
+import { coerceBool } from "../../../utils/mergeMissingUploadFieldValues";
+import { defaultFilingStatusFromMarital } from "../../../utils/intakeFilingDefaults";
 
 export const UploadForm: React.FC = () => {
-  const { goToNextStep, setTaxData, setPendingMissingUpload } =
+  const { goToNextStep, setTaxData, setPendingMissingUpload, taxData } =
     useTaxCalculator();
+
+  const intakeSnapshot = {
+    intakeCompleted: taxData.intakeCompleted,
+    hasChildren: taxData.hasChildren,
+    incomeType: taxData.incomeType,
+    maritalStatus: taxData.maritalStatus,
+  };
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -49,15 +59,29 @@ export const UploadForm: React.FC = () => {
       const data = result.data as Record<string, string | number | undefined>;
 
       if (result.missingFields && result.missingFields.length > 0) {
-        setTaxData({
+        const draft = {
           ...defaultTaxData,
-          dataSource: "upload",
+          ...intakeSnapshot,
+          intakeCompleted: true,
+          filingStatus: defaultFilingStatusFromMarital(
+            intakeSnapshot.maritalStatus,
+          ),
+          dataSource: "upload" as const,
           hasFormData: true,
-        });
+        };
+        setTaxData(draft);
         setPendingMissingUpload({
           extractedData: data,
           missingValues: {},
         });
+        try {
+          if (!isGuestExploreSession()) {
+            localStorage.setItem("tax_return_draft", JSON.stringify(draft));
+            localStorage.setItem("tax_return_step", "2");
+          }
+        } catch {
+          /* ignore */
+        }
         goToNextStep();
       } else {
         // All data extracted successfully
@@ -70,22 +94,41 @@ export const UploadForm: React.FC = () => {
             )
           : new Date().getFullYear() - 1;
 
-        setTaxData({
+        const maritalResolved = String(
+          data.maritalStatus || intakeSnapshot.maritalStatus || "single",
+        );
+        const filingFromDoc =
+          data.filingStatus === "joint" || data.filingStatus === "single"
+            ? data.filingStatus
+            : undefined;
+        const {
+          maritalStatus: _mFrom106,
+          filingStatus: _fFrom106,
+          ...dataRest
+        } = data as Record<string, string | number | undefined>;
+        const merged = {
           ...defaultTaxData,
+          ...intakeSnapshot,
+          intakeCompleted: true,
           income: Number(data.income) || 0,
           taxPaid: Number(data.taxPaid) || 0,
           taxCredits: Number(data.creditPoints) || 2.25,
-          maritalStatus: String(data.maritalStatus || "single"),
           taxYear: boundedExtractedYear,
           gender: data.gender,
           employmentType: data.employmentType,
-          children: Number(data.children) || 0,
+          children:
+            intakeSnapshot.hasChildren === false
+              ? 0
+              : Number(data.children) || 0,
           birthDate: data.birthDate,
           workStartDate: data.workStartDate,
           workEndDate: data.workEndDate,
           additionalIncome: Number(data.additionalIncome) || 0,
           oldAgeAllowance: Number(data.oldAgeAllowance) || 0,
-          childAllowance: Number(data.childAllowance) || 0,
+          childAllowance:
+            intakeSnapshot.hasChildren === false
+              ? 0
+              : Number(data.childAllowance) || 0,
           disabilityAllowance: Number(data.disabilityAllowance) || 0,
           firstName: data.firstName,
           lastName: data.lastName,
@@ -94,10 +137,26 @@ export const UploadForm: React.FC = () => {
           address: data.address,
           city: data.city,
           postalCode: data.postalCode,
-          ...data,
-          dataSource: "upload",
+          ...dataRest,
+          maritalStatus: maritalResolved,
+          filingStatus:
+            filingFromDoc ?? defaultFilingStatusFromMarital(maritalResolved),
+          dataSource: "upload" as const,
           hasFormData: true,
-        });
+          academicDegree: coerceBool(data.academicDegree),
+          newImmigrant: coerceBool(data.newImmigrant),
+          livingInPeriphery: coerceBool(data.livingInPeriphery),
+          yearsSinceAliyah: Number(data.yearsSinceAliyah) || 0,
+        };
+        setTaxData(merged);
+        try {
+          if (!isGuestExploreSession()) {
+            localStorage.setItem("tax_return_draft", JSON.stringify(merged));
+            localStorage.setItem("tax_return_step", "2");
+          }
+        } catch {
+          /* ignore */
+        }
         setToast({
           type: "success",
           message: "הקובץ עובד בהצלחה! מעבר לשלב הבא בעוד רגע…",
@@ -117,7 +176,17 @@ export const UploadForm: React.FC = () => {
 
   const handleManualEntry = () => {
     clearAutoAdvanceAfterUpload();
-    setTaxData({ ...defaultTaxData });
+    setPendingMissingUpload(null);
+    setTaxData({
+      ...defaultTaxData,
+      ...intakeSnapshot,
+      intakeCompleted: true,
+      filingStatus: defaultFilingStatusFromMarital(taxData.maritalStatus),
+      hasChildren: taxData.hasChildren,
+      children: taxData.hasChildren === false ? 0 : taxData.children ?? 0,
+      childAllowance:
+        taxData.hasChildren === false ? 0 : taxData.childAllowance ?? 0,
+    });
     goToNextStep();
   };
 
@@ -164,6 +233,13 @@ export const UploadForm: React.FC = () => {
             </div>
           </div>
         </section>
+
+        {taxData.incomeType && taxData.incomeType !== "employee" ? (
+          <aside className="mb-6 max-w-3xl mx-auto rounded-xl border border-amber-200/70 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800/40 px-4 py-3 text-sm text-amber-900 dark:text-amber-100 leading-snug text-right">
+            ציינת שסוג ההכנסה אינו שכירות בלבד — שלב ההעלאה זהה, והחישוב במערכת נשאר הערכה
+            לשכיר עד להרחבות טופס.
+          </aside>
+        ) : null}
 
         {/* Main upload layout */}
         <div className="grid grid-cols-1 lg:grid-cols-10 gap-6 lg:gap-8 items-start">

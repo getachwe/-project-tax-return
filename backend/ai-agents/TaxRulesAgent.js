@@ -4,7 +4,7 @@
  * משתמש ב-taxCalculator הקיים – לא משנה אותו.
  */
 
-const { calculateTax } = require("../taxCalculator");
+const { calculateFromUserInput } = require("../taxEngine/calculateFromUserInput");
 
 /**
  * מפעיל את חוקי המס ומחשב החזר משוער.
@@ -22,7 +22,7 @@ function applyTaxRules(structuredData) {
   }
 
   try {
-    const rawResult = calculateTax(structuredData);
+    const rawResult = calculateFromUserInput(structuredData);
     const refund = Number(rawResult.refund) || 0;
     const rulesApplied = [
       "מדרגות מס הכנסה",
@@ -32,7 +32,7 @@ function applyTaxRules(structuredData) {
     if (rawResult.calculationDetails?.childrenUnder6) {
       rulesApplied.push("זיכוי ילדים מתחת לגיל 6");
     }
-    if (structuredData.disabilityPercent >= 40) {
+    if (Number(structuredData.disabilityPercent) >= 40) {
       rulesApplied.push("פטור נכות");
     }
 

@@ -1,6 +1,15 @@
 const express = require("express");
 const router = express.Router();
 const { calculateTax } = require("../taxCalculator");
+const { normalizeToEnginePayload } = require("../taxEngine/normalizeToEnginePayload");
+const { validateEngineOutput } = require("../taxEngine/validateEngineOutput");
+const {
+  expandEngineValidationForClient,
+} = require("../taxEngine/engineValidationI18n");
+const { composeTaxExplanationLayer } = require("../taxEngine/taxExplanationLayer");
+const {
+  augmentExplanationLayerWithOptionalLlm,
+} = require("../taxEngine/optionalTaxExplanationLlm");
 const auditService = require("../services/auditService");
 
 const AI_AGENTS_ENABLED = process.env.AI_AGENTS_ENABLED === "true";
@@ -21,13 +30,29 @@ function auditCalculation(result, opts = {}) {
 
 router.post("/calculate-tax", async (req, res) => {
   try {
-    const taxData = req.body || {};
-    const result = calculateTax(taxData);
+    const raw = req.body || {};
+    const enginePayload = normalizeToEnginePayload(raw);
+    const result = calculateTax(enginePayload);
+    const engineValidation = expandEngineValidationForClient(
+      validateEngineOutput(result),
+    );
+    let explanationLayer = composeTaxExplanationLayer({
+      result,
+      summaryData: {
+        ...enginePayload,
+        hasFormData: raw.hasFormData === true,
+      },
+      engineValidation,
+    });
+    explanationLayer = await augmentExplanationLayerWithOptionalLlm(
+      explanationLayer,
+      { engineValidation },
+    );
 
     if (AI_AGENTS_ENABLED) {
       try {
         const { runPipeline } = require("../ai-agents/pipeline");
-        const pipelineResult = await runPipeline(taxData);
+        const pipelineResult = await runPipeline(enginePayload);
         auditCalculation(result, {
           documentSource: pipelineResult.documentSource || "manual",
           rulesApplied: pipelineResult.rulesApplied,
@@ -37,6 +62,8 @@ router.post("/calculate-tax", async (req, res) => {
         });
         return res.json({
           ...result,
+          engineValidation,
+          explanationLayer,
           confidenceScore: pipelineResult.confidenceScore,
           riskLevel: pipelineResult.riskLevel,
           recommendations: pipelineResult.recommendations,
@@ -51,7 +78,7 @@ router.post("/calculate-tax", async (req, res) => {
     }
 
     auditCalculation(result, { documentSource: "manual" });
-    res.json(result);
+    res.json({ ...result, engineValidation, explanationLayer });
   } catch (err) {
     res.status(500).json({ error: "failed to calculate tax" });
   }

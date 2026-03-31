@@ -3,7 +3,7 @@ const router = express.Router();
 const path = require("path");
 const fs = require("fs");
 const { getPdfPath } = require("../utils/paths");
-const { calculateTax } = require("../taxCalculator");
+const { calculateFromUserInput } = require("../taxEngine/calculateFromUserInput");
 const { generateTaxPDF } = require("../utils/pdfHelper");
 const { generateTaxPDFMake } = require("../pdfGeneratorMake");
 const { getSupabaseServiceClient } = require("../supabaseClient");
@@ -25,7 +25,7 @@ router.post("/generate-pdf", async (req, res) => {
     }
     let taxResult;
     try {
-      taxResult = calculateTax(taxData);
+      taxResult = calculateFromUserInput(taxData);
     } catch (calcErr) {
       console.error("PDF: calculateTax failed:", calcErr.message);
       return res.status(400).json({ error: calcErr.message || "נתונים לא תקינים לחישוב" });
@@ -130,8 +130,8 @@ router.post("/generate-pdf", async (req, res) => {
 
 router.post("/generate-tax-return-pdfmake", async (req, res) => {
   try {
-    const taxData = req.body;
-    const taxResult = calculateTax(taxData);
+    const taxData = req.body || {};
+    const taxResult = calculateFromUserInput(taxData);
     const tempPath = getPdfPath(`tax-return-make-${Date.now()}.pdf`);
     await generateTaxPDFMake({ ...taxData, ...taxResult }, tempPath);
     const fullName =

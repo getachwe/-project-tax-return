@@ -11,6 +11,8 @@ const TAX_CODES = {
   244: "taxPaid",
   245: "taxPaid",
   "042": "taxPaid",
+  "040": "taxWithheld040",
+  "043": "taxWithheld043",
 
   // נקודות/זיכויי מס נומינליים
   248: "taxCredits",
@@ -21,7 +23,7 @@ const TAX_CODES = {
   127: "pensionContribution",
   128: "pensionContribution",
   129: "pensionContribution",
-  086: "pensionContribution",
+  "086": "pensionContribution",
   201: "pension201",
   230: "pension230",
   2560: "pension2560",

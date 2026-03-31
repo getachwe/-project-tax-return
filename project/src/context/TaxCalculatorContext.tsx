@@ -3,11 +3,14 @@ import {
   useContext,
   useState,
   useEffect,
+  useCallback,
   ReactNode,
 } from "react";
 import {
   isGuestExploreSession,
 } from "../utils/guestMode";
+
+import type { IncomeType } from "../constants/incomeType";
 
 // Define the tax data structure
 /** מקור הנתונים: העלאת 106 מול מילוי ידני (מניעת בלבול עם hasFormData ישן מטיוטה) */
@@ -25,12 +28,39 @@ export type TaxData = {
   newImmigrant?: boolean;
   livingInPeriphery?: boolean;
   maritalStatus?: string;
+  /** יחיד או גילוי משותף — משפיע על צבירת הכנסות וניכויים */
+  filingStatus?: "single" | "joint";
+  spouseIncome?: number;
+  spouseTaxPaid?: number;
+  /** STEP F: תוספת נקודות ידנית (מקסימום 5 במנוע) */
+  additionalCreditPoints?: number;
+  /** STEP 0 Intake: האם סיימו שאלון פרופיל לפני טופס */
+  intakeCompleted?: boolean;
+  /** STEP 0: יש ילדים רלוונטיים לזיכוי — כבוי מסתיר שדות ילדים */
+  hasChildren?: boolean;
+  /** STEP 0: שכיר / עצמאי / מעורב */
+  incomeType?: IncomeType;
 } & Record<string, unknown>;
+
+/** טיוטות לפני STEP 0 — נחשבות כ-intake הושלם כדי לא לחסום משתמש קיים */
+export function inferLegacyIntakeCompleted(
+  parsed: Partial<TaxData> & Record<string, unknown>,
+): boolean {
+  if (parsed.intakeCompleted === true) return true;
+  if (parsed.intakeCompleted === false) return false;
+  const inc = Number(parsed.income);
+  const tp = Number(parsed.taxPaid);
+  if (Number.isFinite(inc) && inc > 0) return true;
+  if (Number.isFinite(tp) && tp > 0) return true;
+  if (parsed.hasFormData === true) return true;
+  if (parsed.dataSource === "upload") return true;
+  return false;
+}
 
 /** טיוטת השלמה אחרי העלאה כשהשרת דורש השלמת שדות — מוצגת בשלב 2 עם הסטפר */
 export type PendingMissingUpload = {
   extractedData: Record<string, string | number | undefined>;
-  missingValues: Record<string, string | number>;
+  missingValues: Record<string, string | number | boolean>;
 };
 
 // Define the context structure
@@ -59,6 +89,11 @@ export const defaultTaxData: TaxData = {
   hasFormData: false,
   dataSource: "manual",
   maritalStatus: "single",
+  filingStatus: "single",
+  intakeCompleted: false,
+  hasChildren: false,
+  incomeType: "employee",
+  additionalCreditPoints: 0,
 };
 
 /** האם הנתונים נובעים מהעלאת טופס (לא ממילוי ידני בלבד) */
@@ -73,31 +108,61 @@ const TaxCalculatorContext = createContext<
   TaxCalculatorContextType | undefined
 >(undefined);
 
+const PENDING_UPLOAD_SESSION_KEY = "tax_return_pending_missing_upload";
+
 // Create provider component
 export const TaxCalculatorProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [taxData, setTaxData] = useState<TaxData>(defaultTaxData);
-  const [pendingMissingUpload, setPendingMissingUpload] =
+  const [pendingMissingUpload, setPendingMissingUploadInternal] =
     useState<PendingMissingUpload | null>(null);
 
-  const patchPendingMissingUploadField = (
-    id: string,
-    value: string | number | boolean
-  ) => {
-    setPendingMissingUpload((prev) =>
-      prev
-        ? {
-            ...prev,
-            missingValues: {
-              ...prev.missingValues,
-              [id]: typeof value === "boolean" ? String(value) : value,
-            },
-          }
-        : null
-    );
-  };
+  const persistPendingToSession = useCallback(
+    (p: PendingMissingUpload | null) => {
+      try {
+        if (isGuestExploreSession()) return;
+        if (p) {
+          sessionStorage.setItem(
+            PENDING_UPLOAD_SESSION_KEY,
+            JSON.stringify(p)
+          );
+        } else {
+          sessionStorage.removeItem(PENDING_UPLOAD_SESSION_KEY);
+        }
+      } catch {
+        /* ignore */
+      }
+    },
+    []
+  );
+
+  const setPendingMissingUpload = useCallback(
+    (state: PendingMissingUpload | null) => {
+      setPendingMissingUploadInternal(state);
+      persistPendingToSession(state);
+    },
+    [persistPendingToSession]
+  );
+
+  const patchPendingMissingUploadField = useCallback(
+    (id: string, value: string | number | boolean) => {
+      setPendingMissingUploadInternal((prev) => {
+        if (!prev) return null;
+        const next: PendingMissingUpload = {
+          ...prev,
+          missingValues: {
+            ...prev.missingValues,
+            [id]: value,
+          },
+        };
+        persistPendingToSession(next);
+        return next;
+      });
+    },
+    [persistPendingToSession]
+  );
 
   // Load draft from localStorage on mount (לא באורח — בלי טיוטה בדפדפן)
   useEffect(() => {
@@ -105,6 +170,16 @@ export const TaxCalculatorProvider: React.FC<{ children: ReactNode }> = ({
       if (isGuestExploreSession()) return;
       const raw = localStorage.getItem("tax_return_draft");
       const rawStep = localStorage.getItem("tax_return_step");
+
+      let normalizedStep = 1;
+      if (rawStep) {
+        const stepNum = parseInt(rawStep, 10);
+        if (!Number.isNaN(stepNum) && stepNum >= 1 && stepNum <= 3) {
+          normalizedStep = stepNum >= 3 ? 2 : stepNum;
+        }
+      }
+
+      let uploadLike = false;
       if (raw) {
         const parsed = JSON.parse(raw) as Partial<TaxData>;
         if (parsed && typeof parsed === "object") {
@@ -114,19 +189,66 @@ export const TaxCalculatorProvider: React.FC<{ children: ReactNode }> = ({
               : parsed.hasFormData
                 ? "upload"
                 : "manual";
-          setTaxData({
+          uploadLike =
+            dataSource === "upload" ||
+            parsed.dataSource === "upload" ||
+            !!parsed.hasFormData;
+          const mergedDraft = {
             ...defaultTaxData,
             ...parsed,
             dataSource,
             hasFormData: dataSource === "upload",
-          });
+            intakeCompleted: inferLegacyIntakeCompleted({
+              ...parsed,
+              dataSource,
+              hasFormData: dataSource === "upload",
+            }),
+          };
+          if (
+            mergedDraft.hasChildren === undefined &&
+            typeof mergedDraft.children === "number" &&
+            mergedDraft.children > 0
+          ) {
+            mergedDraft.hasChildren = true;
+          }
+          if (mergedDraft.hasChildren === undefined) {
+            mergedDraft.hasChildren = false;
+          }
+          if (
+            mergedDraft.incomeType === undefined ||
+            mergedDraft.incomeType === null ||
+            mergedDraft.incomeType === ""
+          ) {
+            mergedDraft.incomeType = "employee";
+          }
+          setTaxData(mergedDraft as TaxData);
         }
       }
-      if (rawStep) {
-        const stepNum = parseInt(rawStep, 10);
-        if (!Number.isNaN(stepNum) && stepNum >= 1 && stepNum <= 3) {
-          setCurrentStep(stepNum);
+
+      setCurrentStep(normalizedStep);
+
+      const rawPending = sessionStorage.getItem(PENDING_UPLOAD_SESSION_KEY);
+      /** שחזור גם כשאין עדיין טיוטה ב־localStorage (ריענון מיד אחרי העלאה) */
+      const shouldTryRestorePending =
+        normalizedStep === 2 &&
+        !!rawPending &&
+        (uploadLike || !raw);
+
+      if (shouldTryRestorePending) {
+        try {
+          const p = JSON.parse(rawPending) as PendingMissingUpload;
+          if (
+            p?.extractedData &&
+            typeof p.missingValues === "object" &&
+            p.missingValues
+          ) {
+            setPendingMissingUploadInternal(p);
+          }
+        } catch {
+          sessionStorage.removeItem(PENDING_UPLOAD_SESSION_KEY);
         }
+      } else if (!shouldTryRestorePending) {
+        sessionStorage.removeItem(PENDING_UPLOAD_SESSION_KEY);
       }
     } catch {
       // ignore corrupted drafts
@@ -146,7 +268,8 @@ export const TaxCalculatorProvider: React.FC<{ children: ReactNode }> = ({
   useEffect(() => {
     try {
       if (isGuestExploreSession()) return;
-      localStorage.setItem("tax_return_step", String(currentStep));
+      const stepToPersist = currentStep >= 3 ? 2 : currentStep;
+      localStorage.setItem("tax_return_step", String(stepToPersist));
     } catch {
       // ignore localStorage errors
     }
@@ -157,10 +280,11 @@ export const TaxCalculatorProvider: React.FC<{ children: ReactNode }> = ({
     const onGuestEntered = () => {
       setCurrentStep(1);
       setTaxData(defaultTaxData);
-      setPendingMissingUpload(null);
+      setPendingMissingUploadInternal(null);
       try {
         localStorage.removeItem("tax_return_draft");
         localStorage.removeItem("tax_return_step");
+        sessionStorage.removeItem(PENDING_UPLOAD_SESSION_KEY);
       } catch {
         /* ignore */
       }
@@ -195,6 +319,7 @@ export const TaxCalculatorProvider: React.FC<{ children: ReactNode }> = ({
     try {
       localStorage.removeItem("tax_return_draft");
       localStorage.removeItem("tax_return_step");
+      sessionStorage.removeItem(PENDING_UPLOAD_SESSION_KEY);
     } catch {
       // ignore localStorage errors
     }

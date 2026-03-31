@@ -27,6 +27,15 @@ import { BrandLogoIcon } from "./ui/BrandMark";
 const RISK_LEVEL_TOOLTIP =
   "רמת הסיכון נקבעת אוטומטית לפי בדיקות המערכת: תקינות הנתונים (שגיאות או אזהרות), וסבירות יחס בין סכום ההחזר המחושב להכנסה המדווחת.\n\nזו אינה החלטת רשות המיסים ואינה מחליפה ייעוץ מס — מומלץ לוודא את הנתונים מול טופס 106.";
 
+const ENGINE_WARN_LABELS: Record<string, string> = {
+  gross_tax_high_vs_income:
+    "המס הגולמי גבוה יחסית להכנסה — כדאי לבדוק את הנתונים מול טופס 106.",
+  tax_paid_high_vs_income:
+    "סכום הניכויים גבוה יחסית להכנסה — וודא שדות 042, 040 ו-043.",
+  refund_exceeds_income_plus_tax_paid_042:
+    "סכום ההחזר גבוה במיוחד — מומלץ לבדוק שוב את סכומי הניכוי.",
+};
+
 // בסיס ה-API - אותו לוגיקה כמו ב-utils/api.ts
 const isLocalHost =
   typeof window !== "undefined" &&
@@ -308,6 +317,12 @@ export const ResultsDisplay: React.FC = () => {
   const {
     income,
     taxPaid,
+    taxPaidEffective,
+    taxWithheld040,
+    taxWithheld043,
+    filingStatus,
+    spouseIncome,
+    combinedIncome,
     creditPoints,
     creditValue,
     grossTax,
@@ -321,16 +336,91 @@ export const ResultsDisplay: React.FC = () => {
     whyRefund,
     rulesApplied,
     documentSource,
+    engineValidation,
+    explanationLayer,
   } = result as Record<string, unknown>;
+
+  const engineVal = engineValidation as
+    | {
+        valid?: boolean;
+        errors?: string[];
+        warnings?: string[];
+        errorsHe?: string[];
+        warningsHe?: string[];
+      }
+    | undefined;
+  const explainLayer = explanationLayer as
+    | {
+        narrative?: string;
+        suggestedFollowUps?: string[];
+        source?: string;
+        llmSimpleExplanation?: string;
+        llmFollowUps?: string[];
+      }
+    | undefined;
 
   const refundNum = Number(refund);
   const creditPointsNum = Number(creditPoints);
   const creditValueNum = Number(creditValue);
   const grossTaxNum = Number(grossTax);
   const netTaxNum = Number(netTax);
-  const taxPaidNum = Number(taxPaid);
+  const tax042 = Number(taxPaid);
+  const taxPaidEff =
+    taxPaidEffective !== undefined && taxPaidEffective !== null
+      ? Number(taxPaidEffective)
+      : tax042;
+  const w040 = Number(taxWithheld040) || 0;
+  const w043 = Number(taxWithheld043) || 0;
+  const hasWithholdingExtra = w040 > 0 || w043 > 0;
+  const taxPaidNum = Number.isFinite(taxPaidEff) ? taxPaidEff : tax042;
   const incomeNum = Number(income);
+  const isJointResult = filingStatus === "joint";
+  const combinedIncNum = Number(combinedIncome);
+  const spouseIncNum = Number(spouseIncome);
   const explanationStr = String(explanation);
+  const narrativeFromLayer = explainLayer?.narrative?.trim();
+  const summaryMeaningText =
+    narrativeFromLayer ||
+    (typeof whyRefund === "string" && whyRefund.trim()
+      ? whyRefund
+      : explanationStr.split("\n")[0]);
+  const engineWarnings = Array.isArray(engineVal?.warnings)
+    ? (engineVal.warnings as string[])
+    : [];
+  const engineErrors = Array.isArray(engineVal?.errors)
+    ? (engineVal.errors as string[])
+    : [];
+  const engineWarningsHe = Array.isArray(engineVal?.warningsHe)
+    ? (engineVal.warningsHe as string[])
+    : [];
+  const engineErrorsHe = Array.isArray(engineVal?.errorsHe)
+    ? (engineVal.errorsHe as string[])
+    : [];
+  const displayEngineWarnings =
+    engineWarningsHe.length > 0
+      ? engineWarningsHe
+      : engineWarnings.map((w) => ENGINE_WARN_LABELS[w] || w);
+  const displayEngineErrors =
+    engineErrorsHe.length > 0 ? engineErrorsHe : engineErrors;
+  const suggestedFollowUps = Array.isArray(explainLayer?.suggestedFollowUps)
+    ? (explainLayer!.suggestedFollowUps as string[])
+    : [];
+  const llmSimpleExplanation =
+    typeof explainLayer?.llmSimpleExplanation === "string"
+      ? explainLayer.llmSimpleExplanation.trim()
+      : "";
+  const llmFollowUpsList = Array.isArray(explainLayer?.llmFollowUps)
+    ? (explainLayer.llmFollowUps as string[]).filter(
+        (s) => typeof s === "string" && s.trim() !== "",
+      )
+    : [];
+
+  const documentSourceStr =
+    documentSource != null && String(documentSource).trim() !== ""
+      ? String(documentSource)
+      : "";
+  const riskLevelStr =
+    typeof riskLevel === "string" && riskLevel ? riskLevel : "";
 
   const riskVariant =
     riskLevel === "low"
@@ -495,6 +585,41 @@ export const ResultsDisplay: React.FC = () => {
           </div>
         </section>
 
+        {displayEngineErrors.length > 0 && (
+          <div
+            className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900 text-right"
+            role="alert"
+          >
+            <p className="font-semibold mb-1">בדיקת מנוע החישוב</p>
+            <p className="text-red-800/90 mb-2">
+              זוהו בעיות תקינות בפלט החישוב. התוצאה מוצגת לנוחותך — מומלץ לעבור
+              שוב על הנתונים או לפנות לייעוץ.
+            </p>
+            <ul
+              className={`list-disc pr-5 space-y-0.5 text-xs leading-relaxed ${
+                engineErrorsHe.length > 0 ? "" : "font-mono opacity-90"
+              }`}
+            >
+              {displayEngineErrors.map((c, i) => (
+                <li key={`${i}-${String(c).slice(0, 40)}`}>{c}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {displayEngineWarnings.length > 0 && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 text-right">
+            <p className="font-semibold mb-2">אזהרות מהמערכת</p>
+            <ul className="space-y-1.5">
+              {displayEngineWarnings.map((w, i) => (
+                <li key={`${i}-${String(w).slice(0, 40)}`} className="leading-relaxed">
+                  {w}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           <DashboardCard
             title="סטטוס הבקשה"
@@ -512,39 +637,61 @@ export const ResultsDisplay: React.FC = () => {
           </div>
           <div className="rounded-xl border border-[#e8eaf2] bg-white p-5 shadow-sm">
             <Wallet className="h-6 w-6 text-[#00A86B] mb-3" />
-            <p className="text-xs text-[#64748b]">מס ששולם</p>
+            <p className="text-xs text-[#64748b]">
+              {hasWithholdingExtra
+                ? "סה״כ מס שנוכה (042+040+043)"
+                : "מס שנוכה (042)"}
+            </p>
             <p className="text-2xl font-extrabold text-[#006D4E] mt-1 tabular-nums">
               {fmtIls(taxPaidNum)}
             </p>
+            {hasWithholdingExtra && (
+              <p className="text-xs text-[#64748b] mt-2 tabular-nums">
+                מתוכם שדה 042: {fmtIls(tax042)}
+              </p>
+            )}
           </div>
           <div className="rounded-xl border border-[#e8eaf2] bg-white p-5 shadow-sm">
             <Banknote className="h-6 w-6 text-[#00A86B] mb-3" />
-            <p className="text-xs text-[#64748b]">הכנסה שנתית</p>
-            <p className="text-2xl font-extrabold text-[#131b2e] mt-1 tabular-nums">
-              {fmtIls(incomeNum)}
+            <p className="text-xs text-[#64748b]">
+              {isJointResult ? "הכנסה משוקללת (גילוי משותף)" : "הכנסה שנתית"}
             </p>
+            <p className="text-2xl font-extrabold text-[#131b2e] mt-1 tabular-nums">
+              {fmtIls(
+                isJointResult && Number.isFinite(combinedIncNum)
+                  ? combinedIncNum
+                  : incomeNum
+              )}
+            </p>
+            {isJointResult &&
+              Number.isFinite(spouseIncNum) &&
+              spouseIncNum > 0 && (
+                <p className="text-xs text-[#64748b] mt-2 tabular-nums leading-snug">
+                  מגיש/ה: {fmtIls(incomeNum)} · בן/בת זוג: {fmtIls(spouseIncNum)}
+                </p>
+              )}
           </div>
         </section>
 
-        {(documentSource || riskLevel) && (
+        {(documentSourceStr || riskLevelStr) && (
           <div className="rounded-xl border border-[#e8eaf2] bg-white p-4 shadow-sm flex flex-wrap items-center gap-4 justify-between">
             <div className="text-sm text-[#64748b] min-w-0">
-              {documentSource && (
+              {documentSourceStr ? (
                 <span className="block truncate">
-                  מקור: {String(documentSource)}
+                  מקור: {documentSourceStr}
                 </span>
-              )}
+              ) : null}
             </div>
-            {riskLevel && (
+            {riskLevelStr ? (
               <div className="flex items-center gap-1.5 shrink-0">
                 <StatusBadge
                   variant={
                     riskVariant as "success" | "warning" | "danger" | "neutral"
                   }
                 >
-                  {riskLevel === "low"
+                  {riskLevelStr === "low"
                     ? "סיכון נמוך"
-                    : riskLevel === "medium"
+                    : riskLevelStr === "medium"
                       ? "סיכון בינוני"
                       : "סיכון גבוה"}
                 </StatusBadge>
@@ -554,7 +701,7 @@ export const ResultsDisplay: React.FC = () => {
                   iconClassName="w-4 h-4 text-[#64748b] hover:text-[#131b2e] cursor-help inline align-middle shrink-0"
                 />
               </div>
-            )}
+            ) : null}
             <div className="w-full sm:w-48 h-2 rounded-full bg-[#e8eaf2] overflow-hidden">
               <div
                 className="h-full rounded-full bg-gradient-to-l from-[#00A86B] to-[#006D4E]"
@@ -638,15 +785,9 @@ export const ResultsDisplay: React.FC = () => {
             title="מה זה אומר?"
             className="border-[#e8eaf2] shadow-sm"
           >
-            {whyRefund && typeof whyRefund === "string" ? (
-              <p className="text-sm text-[#4a5568] leading-relaxed">
-                {whyRefund}
-              </p>
-            ) : (
-              <p className="text-sm text-[#4a5568] leading-relaxed">
-                {explanationStr.split("\n")[0]}
-              </p>
-            )}
+            <p className="text-sm text-[#4a5568] leading-relaxed whitespace-pre-line">
+              {summaryMeaningText}
+            </p>
           </DashboardCard>
           <DashboardCard
             title="נתונים טכניים"
@@ -683,6 +824,49 @@ export const ResultsDisplay: React.FC = () => {
           </DashboardCard>
         </div>
 
+        {suggestedFollowUps.length > 0 && (
+          <DashboardCard
+            title="שאלות המשך מומלצות"
+            className="border-[#e8eaf2] shadow-sm"
+          >
+            <ul className="space-y-2 text-sm text-[#64748b]">
+              {suggestedFollowUps.map((q, i) => (
+                <li key={i} className="flex gap-2 leading-relaxed">
+                  <span className="text-[#006D4E] shrink-0">?</span>
+                  {q}
+                </li>
+              ))}
+            </ul>
+          </DashboardCard>
+        )}
+
+        {(llmSimpleExplanation || llmFollowUpsList.length > 0) && (
+          <DashboardCard
+            title="הסבר נוסף (מודל שפה)"
+            className="border-[#d8def8] bg-[#f8f9ff] shadow-sm"
+          >
+            <p className="text-xs text-[#64748b] mb-3 leading-relaxed">
+              ניסוח עזר בלבד לפי נתוני החישוב שהועברו. אין שינוי מספרים — הסכומים
+              במסך הם מקור האמת.
+            </p>
+            {llmSimpleExplanation ? (
+              <p className="text-sm text-[#4a5568] leading-relaxed whitespace-pre-line">
+                {llmSimpleExplanation}
+              </p>
+            ) : null}
+            {llmFollowUpsList.length > 0 ? (
+              <ul className="mt-3 space-y-2 text-sm text-[#64748b]">
+                {llmFollowUpsList.map((q, i) => (
+                  <li key={i} className="flex gap-2 leading-relaxed">
+                    <span className="text-[#4f46e5] shrink-0">•</span>
+                    {q}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </DashboardCard>
+        )}
+
         {Array.isArray(recommendations) && recommendations.length > 0 && (
           <DashboardCard title="המלצות" className="border-[#e8eaf2] shadow-sm">
             <ul className="space-y-2 text-sm text-[#64748b]">
@@ -697,18 +881,6 @@ export const ResultsDisplay: React.FC = () => {
         )}
 
         <div className="flex flex-col items-center gap-4 pt-2">
-          <button
-            type="button"
-            className="w-full max-w-lg flex items-center justify-center gap-2 py-3.5 rounded-xl border-2 border-[#006D4E] text-[#006D4E] font-bold bg-white hover:bg-[#E6E9FF]/40 transition-colors shadow-sm"
-            onClick={() =>
-              window.alert(
-                "להגשת בקשה בפועל יש להיכנס לאזור האישי של רשות המיסים. השלב מתבצע מחוץ למערכת זו."
-              )
-            }
-          >
-            <Send className="h-5 w-5" />
-            הגשת הבקשה לרשות המיסים
-          </button>
           <div className="flex flex-wrap items-center justify-center gap-2 w-full">
             <button
               type="button"

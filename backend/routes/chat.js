@@ -120,6 +120,11 @@ router.post("/chat", async (req, res) => {
 
     const maxReportsOpt = parseMaxReports(req.body);
     const categoryHint = parseChatCategory(req.body);
+    const wantStream =
+      req.body.stream === true ||
+      req.body.stream === 1 ||
+      req.body.stream === "1" ||
+      req.body.stream === "true";
 
     let contextObject;
     if (userId) {
@@ -132,12 +137,95 @@ router.post("/chat", async (req, res) => {
       contextObject = buildGuestContext();
     }
 
-    const result = await generateChatReply({
-      userMessage: message,
-      contextObject,
-      historyMessages,
-      chatCategory: categoryHint ?? null,
-    });
+    const runGenerate = (onStreamDelta) =>
+      generateChatReply({
+        userMessage: message,
+        contextObject,
+        historyMessages,
+        chatCategory: categoryHint ?? null,
+        ...(onStreamDelta ? { onStreamDelta } : {}),
+      });
+
+    if (wantStream) {
+      res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
+      res.setHeader("Cache-Control", "no-cache, no-transform");
+      res.setHeader("Connection", "keep-alive");
+      res.setHeader("X-Accel-Buffering", "no");
+      if (typeof res.flushHeaders === "function") {
+        res.flushHeaders();
+      }
+
+      const writeSse = (event, data) => {
+        res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+      };
+
+      let result;
+      try {
+        result = await runGenerate((chunk) =>
+          writeSse("delta", { t: chunk }),
+        );
+      } catch (genErr) {
+        console.error("[chat] stream generate:", genErr);
+        writeSse("error", {
+          message: genErr.message || "chat failed",
+        });
+        res.end();
+        return;
+      }
+
+      if (resolved && chatDbAvailable) {
+        try {
+          const assistantPersist =
+            result.persistedReply != null
+              ? result.persistedReply
+              : result.reply;
+          await appendExchange(
+            service,
+            resolved.conversationId,
+            message,
+            assistantPersist,
+          );
+        } catch (persistErr) {
+          console.error("[chat] persist messages:", persistErr.message);
+        }
+      }
+
+      const reportsLoadedStream =
+        contextObject.mode === "authenticated"
+          ? contextObject.reports?.length ?? 0
+          : 0;
+
+      writeSse("done", {
+        reply: result.reply,
+        mode: result.mode,
+        category: result.category,
+        needsClarification: !!result.needsClarification,
+        ...(Array.isArray(result.suggestedFollowUps) &&
+        result.suggestedFollowUps.length
+          ? { suggestedFollowUps: result.suggestedFollowUps }
+          : {}),
+        intentConfidence:
+          result.intentConfidence != null ? result.intentConfidence : undefined,
+        chatDbAvailable,
+        reportsInContext: reportsLoadedStream,
+        ...(resolved && chatDbAvailable
+          ? {
+              conversationId: resolved.conversationId,
+              guestSessionId: resolved.guestSessionId || undefined,
+            }
+          : {}),
+        disclaimer:
+          result.mode === "personalized"
+            ? "התשובות מבוססות על הנתונים השמורים בחשבון שלך (עד כמה דוחות אחרונים לפי ההגדרות)."
+            : "התשובות כלליות בלבד — ללא נתונים אישיים.",
+        engine: result.engine,
+        chatLlmAvailable: isChatLlmEnabled(),
+      });
+      res.end();
+      return;
+    }
+
+    const result = await runGenerate();
 
     if (resolved && chatDbAvailable) {
       try {
@@ -166,6 +254,10 @@ router.post("/chat", async (req, res) => {
       mode: result.mode,
       category: result.category,
       needsClarification: !!result.needsClarification,
+      ...(Array.isArray(result.suggestedFollowUps) &&
+      result.suggestedFollowUps.length
+        ? { suggestedFollowUps: result.suggestedFollowUps }
+        : {}),
       intentConfidence:
         result.intentConfidence != null ? result.intentConfidence : undefined,
       chatDbAvailable,

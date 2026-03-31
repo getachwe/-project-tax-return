@@ -7,12 +7,18 @@
 const FORM_106_KEYS = [
   "income",
   "taxPaid",
+  "taxWithheld040",
+  "taxWithheld043",
   "taxCredits",
   "pensionContribution",
   "additionalIncome",
   "taxYear",
   "creditPoints",
   "children",
+  "filingStatus",
+  "spouseIncome",
+  "spouseTaxPaid",
+  "additionalCreditPoints",
 ];
 
 /**
@@ -36,6 +42,8 @@ function normalizeExtractedFields(extracted) {
   return {
     income: num(extracted.income ?? extracted.fee158),
     taxPaid: num(extracted.taxPaid),
+    taxWithheld040: num(extracted.taxWithheld040),
+    taxWithheld043: num(extracted.taxWithheld043),
     pensionContribution: num(extracted.pensionContribution ?? extracted.pension201 ?? extracted.pension230),
     donations: num(extracted.donations ?? extracted.deductions991),
     taxCredits: num(extracted.taxCredits),
@@ -43,6 +51,9 @@ function normalizeExtractedFields(extracted) {
     taxYear: num(extracted.taxYear) || new Date().getFullYear() - 1,
     creditPoints: num(extracted.creditPoints) || 2.25,
     children: Math.max(0, Math.floor(num(extracted.children))),
+    spouseIncome: num(extracted.spouseIncome),
+    spouseTaxPaid: num(extracted.spouseTaxPaid),
+    additionalCreditPoints: num(extracted.additionalCreditPoints),
     ...extracted,
   };
 }

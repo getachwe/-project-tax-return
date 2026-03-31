@@ -3,7 +3,7 @@
  * לא משנה את taxCalculator – קורא ל-calculateTax עם נתונים מעודכנים או מחשב זיכוי נפרד.
  */
 
-const { calculateTax } = require("../taxCalculator");
+const { calculateFromUserInput } = require("../taxEngine/calculateFromUserInput");
 
 /** זיכוי מס על תרומות לארגונים מוכרים (בערך 35% בישראל) */
 const DONATION_CREDIT_RATE = 0.35;
@@ -22,7 +22,7 @@ function simulate(baseData, scenario = {}) {
   let scenarioDescription = "";
 
   try {
-    const currentResult = calculateTax(data);
+    const currentResult = calculateFromUserInput(data);
     currentRefund = Number(currentResult.refund) || 0;
   } catch (_) {
     return {
@@ -65,7 +65,10 @@ function simulate(baseData, scenario = {}) {
         break;
       }
       const simulatedIncome = income - amount;
-      const simulatedResult = calculateTax({ ...data, income: simulatedIncome });
+      const simulatedResult = calculateFromUserInput({
+        ...data,
+        income: simulatedIncome,
+      });
       simulatedRefund = Number(simulatedResult.refund) || 0;
       scenarioDescription = `הפקדה של ${amount.toLocaleString()} ₪ לקופת גמל/פנסיה (הכנסה לחיוב מופחתת)`;
       break;

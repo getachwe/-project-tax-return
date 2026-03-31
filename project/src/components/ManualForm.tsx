@@ -10,21 +10,27 @@ import {
   FIELD_LABELS,
   FIELD_TOOLTIPS,
   MARITAL_OPTIONS,
+  FILING_STATUS_OPTIONS,
   GENDER_OPTIONS,
   EMPLOYMENT_OPTIONS,
 } from "../constants/fields";
 import { DynamicFormField } from "./forms/DynamicForm";
 import { TAX_FORM_FIELD_SCROLL_ORDER } from "../constants/taxFormFieldOrder";
+import { showEmployerDetailFields } from "../utils/intakeFieldVisibility";
+import { defaultFilingStatusFromMarital } from "../utils/intakeFilingDefaults";
 
 const TOOLTIP_KEYS = new Set([
   "income",
   "taxPaid",
+  "taxWithheld040",
+  "taxWithheld043",
   "taxCredits",
   "additionalIncome",
   "taxYear",
   "childAllowance",
   "disabilityAllowance",
   "oldAgeAllowance",
+  "additionalCreditPoints",
 ]);
 
 const getTooltip = (key: string) =>
@@ -50,6 +56,10 @@ const getFieldType = (key: string): DynamicFormField["type"] => {
     [
       "income",
       "taxPaid",
+      "taxWithheld040",
+      "taxWithheld043",
+      "spouseIncome",
+      "spouseTaxPaid",
       "children",
       "additionalIncome",
       "taxYear",
@@ -57,6 +67,7 @@ const getFieldType = (key: string): DynamicFormField["type"] => {
       "disabilityPercent",
       "yearsSinceAliyah",
       "creditPoints",
+      "additionalCreditPoints",
       "childAllowance",
       "disabilityAllowance",
     ].includes(key)
@@ -64,7 +75,9 @@ const getFieldType = (key: string): DynamicFormField["type"] => {
     return "number";
   if (["birthDate", "workStartDate", "workEndDate"].includes(key))
     return "date";
-  if (["maritalStatus", "gender", "employmentType"].includes(key))
+  if (
+    ["maritalStatus", "filingStatus", "gender", "employmentType"].includes(key)
+  )
     return "select";
   if (["isArmyService", "isNationalService"].includes(key)) return "checkbox";
   return "text";
@@ -72,6 +85,7 @@ const getFieldType = (key: string): DynamicFormField["type"] => {
 
 const getOptions = (key: string) => {
   if (key === "maritalStatus") return MARITAL_OPTIONS;
+  if (key === "filingStatus") return FILING_STATUS_OPTIONS;
   if (key === "gender") return GENDER_OPTIONS;
   if (key === "employmentType") return EMPLOYMENT_OPTIONS;
   return undefined;
@@ -88,6 +102,11 @@ export const ManualForm: React.FC = () => {
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [errorScrollNonce, setErrorScrollNonce] = useState(0);
 
+  /** STEP 0: בלי ילדים — לא מציגים שדות ילדים / קצבת ילדים */
+  const omitChildFields = taxData.hasChildren === false;
+  const isJointFiling = taxData.filingStatus === "joint";
+  const showEmployerFields = showEmployerDetailFields(taxData.incomeType);
+
   // סידור השדות לפי נושאים
   const fieldSections = useMemo(
     () => ({
@@ -95,11 +114,14 @@ export const ManualForm: React.FC = () => {
       main: [
         "income",
         "taxPaid",
+        "taxWithheld040",
+        "taxWithheld043",
         "taxCredits",
         "additionalIncome",
         "workPeriod",
         "creditPoints",
-        "children",
+        "additionalCreditPoints",
+        ...(omitChildFields ? [] : ["children"]),
         "taxYear",
       ],
 
@@ -110,6 +132,8 @@ export const ManualForm: React.FC = () => {
         "employeeId",
         "birthDate",
         "maritalStatus",
+        "filingStatus",
+        ...(isJointFiling ? ["spouseIncome", "spouseTaxPaid"] : []),
         "gender",
         "address",
         "residency",
@@ -120,9 +144,9 @@ export const ManualForm: React.FC = () => {
         "employmentType",
         "workStartDate",
         "workEndDate",
-        "employerName",
-        "deductionFileNumber",
-        "kibbutzMember",
+        ...(showEmployerFields
+          ? ["employerName", "deductionFileNumber", "kibbutzMember"]
+          : []),
       ],
 
       // נתונים פיננסיים נוספים
@@ -133,9 +157,13 @@ export const ManualForm: React.FC = () => {
       ],
 
       // קצבאות
-      benefits: ["childAllowance", "disabilityAllowance", "oldAgeAllowance"],
+      benefits: [
+        ...(omitChildFields ? [] : ["childAllowance"]),
+        "disabilityAllowance",
+        "oldAgeAllowance",
+      ],
     }),
-    []
+    [omitChildFields, isJointFiling, showEmployerFields],
   );
 
   const fields: DynamicFormField[] = useMemo(
@@ -155,10 +183,16 @@ export const ManualForm: React.FC = () => {
           min: [
             "income",
             "taxPaid",
+            "taxWithheld040",
+            "taxWithheld043",
+            "spouseIncome",
+            "spouseTaxPaid",
             "taxYear",
             "children",
             "additionalIncome",
             "oldAgeAllowance",
+            "creditPoints",
+            "additionalCreditPoints",
             "childAllowance",
             "disabilityAllowance",
           ].includes(key)
@@ -166,7 +200,12 @@ export const ManualForm: React.FC = () => {
               ? new Date().getFullYear() - 6
               : 0
             : undefined,
-          max: key === "taxYear" ? new Date().getFullYear() - 1 : undefined,
+          max:
+            key === "taxYear"
+              ? new Date().getFullYear() - 1
+              : key === "additionalCreditPoints"
+                ? 5
+                : undefined,
         })),
     [fieldSections]
   );
@@ -186,6 +225,21 @@ export const ManualForm: React.FC = () => {
     setSubmitAttempted(false);
     if (id in extra) {
       setExtra((prev) => ({ ...prev, [id]: value }));
+    } else if (id === "maritalStatus") {
+      const fs = defaultFilingStatusFromMarital(String(value));
+      setTaxData({
+        ...taxData,
+        maritalStatus: value as TaxData["maritalStatus"],
+        filingStatus: fs,
+        ...(fs === "single" ? { spouseIncome: 0, spouseTaxPaid: 0 } : {}),
+      });
+    } else if (id === "filingStatus") {
+      const fs = value === "joint" ? "joint" : "single";
+      setTaxData({
+        ...taxData,
+        filingStatus: fs,
+        ...(fs === "single" ? { spouseIncome: 0, spouseTaxPaid: 0 } : {}),
+      });
     } else {
       setTaxData({ ...taxData, [id]: value });
     }
@@ -233,6 +287,7 @@ export const ManualForm: React.FC = () => {
       ...extra,
       dataSource: source,
       hasFormData: source === "upload",
+      ...(omitChildFields ? { children: 0, childAllowance: 0 } : {}),
     } as TaxData);
     console.log("🚀 About to call goToNextStep from ManualForm");
     goToNextStep();
@@ -275,6 +330,13 @@ export const ManualForm: React.FC = () => {
               ? "הנתונים הבאים חולצו מהטופס שהעלית. אנא בדוק ותקן במידת הצורך."
               : "אנא הזן את הנתונים הבאים כדי שנוכל לחשב את החזר המס האפשרי שלך."}
           </p>
+          {taxData.incomeType &&
+            taxData.incomeType !== "employee" && (
+              <p className="mt-3 text-xs text-amber-800 bg-amber-50 border border-amber-200/70 rounded-lg px-3 py-2 max-w-2xl mr-0 ml-auto leading-snug">
+                ציינת הכנסה שאינה שכירות בלבד — החישוב במערכת הוא הערכה; להמשך
+                דיוק נדרשות הרחבות טופס (עומדות בתוכנית העבודה).
+              </p>
+            )}
         </div>
         {submitAttempted && !isFormValid && (
           <div

@@ -200,7 +200,7 @@ export const Header: React.FC<HeaderProps> = ({
               עזרה
             </Dialog.Title>
             <div className="text-muted-foreground text-center mb-4 space-y-2 rtl">
-              <p>ברוכים הבאים למחשבון החזרי מס!</p>
+              <p>ברוכים הבאים לסימולטור להחזר מס!</p>
               <p>
                 באמצעות כלי זה תוכלו לבדוק בקלות ובמהירות האם מגיע לכם החזר מס
                 מהמדינה.
@@ -239,7 +239,7 @@ export const Header: React.FC<HeaderProps> = ({
             </Dialog.Title>
             <div className="text-muted-foreground text-center mb-4 space-y-2 rtl">
               <p>
-                מחשבון החזרי מס פותח במטרה להנגיש לכל אזרח את האפשרות לבדוק
+                סימולטור להחזר מס פותח במטרה להנגיש לכל אזרח את האפשרות לבדוק
                 זכאות להחזר מס בצורה פשוטה, מהירה וללא עלות.
               </p>
               <p>

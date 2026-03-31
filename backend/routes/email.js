@@ -4,7 +4,7 @@ const path = require("path");
 const fs = require("fs");
 const { getPdfPath } = require("../utils/paths");
 const nodemailer = require("nodemailer");
-const { calculateTax } = require("../taxCalculator");
+const { calculateFromUserInput } = require("../taxEngine/calculateFromUserInput");
 const { generateTaxPDF } = require("../utils/pdfHelper");
 const { getSupabaseServiceClient } = require("../supabaseClient");
 const { getBearerToken } = require("../utils/authHelpers");
@@ -84,7 +84,7 @@ router.post("/send-tax-return-email", async (req, res) => {
     // Generate new PDF if we couldn't use existing one
     if (!tempPath) {
       console.log("Generating new PDF");
-      const taxResult = calculateTax(taxData);
+      const taxResult = calculateFromUserInput(taxData);
       tempPath = getPdfPath(`tax-return-email-${Date.now()}.pdf`);
       await generateTaxPDF({ ...taxData, ...taxResult }, tempPath);
     }

@@ -22,6 +22,8 @@ const PII_KEYS = new Set([
 const EXTRACTION_KEYS = [
   "income",
   "taxPaid",
+  "taxWithheld040",
+  "taxWithheld043",
   "taxCredits",
   "employmentType",
   "children",
@@ -60,6 +62,8 @@ const EXTRACTION_KEYS = [
 const FORM106_CODE_MAP = `טופס 106 – חלץ לפי קודים (החזר JSON עם המפתחות באנגלית):
 income = קוד 158/172 (סה"כ הכנסה חייבת)
 taxPaid = קוד 042 (סה"כ ניכויי מס / מס שנוכה)
+taxWithheld040 = קוד 040 אם מופיע (ניכוי מס נוסף, מספר)
+taxWithheld043 = קוד 043 אם מופיע (ניכוי מס נוסף, מספר)
 taxCredits = קוד 248/249 (נקודות זיכוי / הפרשות מעביד לקופות גמל)
 additionalIncome = קוד 045/086 (הכנסה נוספת / הפקדות לקופ"ג)
 taxYear = שנת המס (4 ספרות)
@@ -86,6 +90,8 @@ const SYSTEM_PROMPT = `אתה מומחה לטופס 106 (דף סיכום שנת�
 const ALL_KEYS_FOR_RAW = [
   "income",
   "taxPaid",
+  "taxWithheld040",
+  "taxWithheld043",
   "taxCredits",
   "additionalIncome",
   "taxYear",

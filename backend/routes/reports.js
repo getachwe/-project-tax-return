@@ -8,7 +8,7 @@ const {
   getSupabaseServiceClient,
 } = require("../supabaseClient");
 const { getBearerToken } = require("../utils/authHelpers");
-const { calculateTax } = require("../taxCalculator");
+const { calculateFromUserInput } = require("../taxEngine/calculateFromUserInput");
 const { generateTaxPDF } = require("../utils/pdfHelper");
 
 async function getUserFromRequest(req) {
@@ -77,7 +77,7 @@ router.post("/reports", async (req, res) => {
     } = req.body || {};
     if (!taxData) return res.status(400).json({ error: "taxData is required" });
 
-    const calculationResult = inputCalc || calculateTax(taxData);
+    const calculationResult = inputCalc || calculateFromUserInput(taxData);
 
     // Generate temp PDF
     const tempPath = getPdfPath(`report-${Date.now()}.pdf`);

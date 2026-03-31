@@ -13,6 +13,7 @@
   "dependencies": {
     "@headlessui/react": "^2.2.4",
     "@sendgrid/mail": "^8.1.5",
+    "@sparticuz/chromium": "^131.0.0",
     "@supabase/supabase-js": "^2.57.0",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
@@ -25,12 +26,14 @@
     "pdf2pic": "^3.1.4",
     "pdfkit": "^0.17.1",
     "pdfmake": "^0.2.20",
+    "puppeteer": "^23.11.1",
+    "puppeteer-core": "^23.11.1",
     "react-router-dom": "^7.6.1",
     "serverless-http": "^3.2.0",
     "tesseract.js": "^4.1.1"
   },
   "devDependencies": {
     "@types/react-router-dom": "^5.3.3",
-       "jest": "^29.7.0"
+    "jest": "^29.7.0"
   }
 }

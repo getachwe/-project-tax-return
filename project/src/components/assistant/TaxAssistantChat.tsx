@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { MessageCircle, Send, Loader2, Bot, User } from "lucide-react";
-import { apiChat, apiChatLoadMessages } from "../../utils/api";
+import { apiChatStream, apiChatLoadMessages } from "../../utils/api";
 import { renderChatMarkdown } from "../../utils/chatMessageFormat";
 import { useI18n } from "../../i18n/useI18n";
 
@@ -266,7 +266,11 @@ export const TaxAssistantChat: React.FC<Props> = ({
       if (!text || loading || !historyLoaded) return;
       setInput("");
       setError(null);
-      setMessages((m) => [...m, { role: "user", text }]);
+      setMessages((m) => [
+        ...m,
+        { role: "user", text },
+        { role: "assistant", text: "" },
+      ]);
       setLoading(true);
       try {
         const lsToken =
@@ -275,11 +279,31 @@ export const TaxAssistantChat: React.FC<Props> = ({
             : null;
         if (lsToken) setToken(lsToken);
         const authToken = isGuestUi ? null : lsToken || token;
-        const res = await apiChat(text, authToken ?? undefined, {
-          conversationId: conversationId ?? undefined,
-          guestSessionId: isGuestUi ? guestSessionId ?? undefined : undefined,
-          maxReports: isGuestUi ? undefined : 15,
-        });
+        const res = await apiChatStream(
+          text,
+          authToken ?? undefined,
+          {
+            conversationId: conversationId ?? undefined,
+            guestSessionId: isGuestUi ? guestSessionId ?? undefined : undefined,
+            maxReports: isGuestUi ? undefined : 15,
+          },
+          {
+            onDelta: (delta) => {
+              setMessages((m) => {
+                const next = [...m];
+                const last = next.length - 1;
+                if (last < 0 || next[last].role !== "assistant") {
+                  return next;
+                }
+                next[last] = {
+                  role: "assistant",
+                  text: next[last].text + delta,
+                };
+                return next;
+              });
+            },
+          },
+        );
         setLastMode(res.mode);
         if (res.chatDbAvailable === false) {
           clearChatLocalStorage(isGuestUi);
@@ -291,15 +315,31 @@ export const TaxAssistantChat: React.FC<Props> = ({
         if (typeof res.chatLlmAvailable === "boolean") {
           setChatLlmAvailable(res.chatLlmAvailable);
         }
-        setMessages((m) => [...m, { role: "assistant", text: res.reply }]);
+        setMessages((m) => {
+          const next = [...m];
+          const last = next.length - 1;
+          if (last >= 0 && next[last].role === "assistant") {
+            next[last] = { role: "assistant", text: res.reply };
+            return next;
+          }
+          return [...m, { role: "assistant", text: res.reply }];
+        });
       } catch (e) {
         const msg =
           e instanceof Error ? e.message : t("assistant.error.generic");
         setError(msg);
-        setMessages((m) => [
-          ...m,
-          { role: "assistant", text: t("assistant.error.retry") },
-        ]);
+        setMessages((m) => {
+          const next = [...m];
+          const last = next.length - 1;
+          if (last >= 0 && next[last].role === "assistant") {
+            next[last] = {
+              role: "assistant",
+              text: t("assistant.error.retry"),
+            };
+            return next;
+          }
+          return [...m, { role: "assistant", text: t("assistant.error.retry") }];
+        });
       } finally {
         setLoading(false);
         queueMicrotask(() => {
@@ -423,7 +463,13 @@ export const TaxAssistantChat: React.FC<Props> = ({
             </div>
           </div>
         )}
-        {messages.map((m, i) => (
+        {messages.map((m, i) => {
+          const isStreamingAssistantSlot =
+            m.role === "assistant" &&
+            i === messages.length - 1 &&
+            loading &&
+            !m.text;
+          return (
           <div
             key={i}
             className={[
@@ -453,19 +499,21 @@ export const TaxAssistantChat: React.FC<Props> = ({
                   : "bg-slate-100 text-slate-800 rounded-tl-sm",
               ].join(" ")}
             >
-              {renderChatMarkdown(
-                m.text,
-                m.role === "user" ? "user" : "assistant",
+              {isStreamingAssistantSlot ? (
+                <span className="inline-flex items-center gap-2 text-slate-500">
+                  <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                  {t("assistant.thinking")}
+                </span>
+              ) : (
+                renderChatMarkdown(
+                  m.text,
+                  m.role === "user" ? "user" : "assistant",
+                )
               )}
             </div>
           </div>
-        ))}
-        {loading && (
-          <div className="flex items-center gap-2 text-slate-500 text-sm px-2">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            {t("assistant.thinking")}
-          </div>
-        )}
+        );
+        })}
         <div ref={bottomRef} />
       </div>
 

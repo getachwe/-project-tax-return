@@ -312,6 +312,89 @@ export async function apiChat(
   return res.json();
 }
 
+/**
+ * צ'אט עם SSE — קטעי תשובה ב-event: delta, סיום מלא ב-event: done (אותו מבנה כמו apiChat).
+ */
+export async function apiChatStream(
+  message: string,
+  token: string | null | undefined,
+  opts: {
+    conversationId?: string | null;
+    guestSessionId?: string | null;
+    maxReports?: number;
+    category?: string | null;
+  } | undefined,
+  handlers: { onDelta: (text: string) => void },
+): Promise<ChatApiResponse> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const body: Record<string, unknown> = { message, stream: true };
+  if (opts?.conversationId) body.conversationId = opts.conversationId;
+  if (opts?.guestSessionId) body.guestSessionId = opts.guestSessionId;
+  if (opts?.maxReports != null && opts.maxReports > 0) {
+    body.maxReports = opts.maxReports;
+  }
+  if (opts?.category != null && opts.category !== "") {
+    body.category = opts.category;
+  }
+  const res = await fetch(`${BASE_URL}/api/chat`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(await parseApiError(res));
+  const reader = res.body?.getReader();
+  if (!reader) throw new Error("אין גוף תשובה (streaming)");
+
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let donePayload: ChatApiResponse | null = null;
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let sep: number;
+    while ((sep = buffer.indexOf("\n\n")) !== -1) {
+      const rawEvent = buffer.slice(0, sep);
+      buffer = buffer.slice(sep + 2);
+      let eventName = "message";
+      const dataParts: string[] = [];
+      for (const line of rawEvent.split("\n")) {
+        if (line.startsWith("event:")) {
+          eventName = line.slice(6).trim();
+        } else if (line.startsWith("data:")) {
+          dataParts.push(line.slice(5).trimStart());
+        }
+      }
+      const dataStr = dataParts.join("");
+      if (!dataStr) continue;
+      let data: Record<string, unknown>;
+      try {
+        data = JSON.parse(dataStr) as Record<string, unknown>;
+      } catch {
+        continue;
+      }
+      if (eventName === "delta" && typeof data.t === "string") {
+        handlers.onDelta(data.t);
+      } else if (eventName === "done") {
+        donePayload = data as unknown as ChatApiResponse;
+      } else if (eventName === "error") {
+        throw new Error(
+          typeof data.message === "string" ? data.message : "stream error",
+        );
+      }
+    }
+  }
+
+  if (!donePayload) {
+    throw new Error("הזרם נקטע לפני סיום התשובה");
+  }
+  return donePayload;
+}
+
 export async function apiChatLoadMessages(
   conversationId: string,
   token?: string | null,

@@ -26,13 +26,24 @@ function detectMissing(data) {
 function detectInconsistencies(data) {
   const warnings = [];
   const income = Number(data.income) || 0;
-  const taxPaid = Number(data.taxPaid) || 0;
+  const spouseInc =
+    String(data.filingStatus || "")
+      .trim()
+      .toLowerCase() === "joint"
+      ? Number(data.spouseIncome) || 0
+      : 0;
+  const combinedIncome = income + spouseInc;
+  const taxPaid042 = Number(data.taxPaid) || 0;
+  const w040 = Number(data.taxWithheld040) || 0;
+  const w043 = Number(data.taxWithheld043) || 0;
+  const spouseTax = Number(data.spouseTaxPaid) || 0;
+  const taxPaidTotal = taxPaid042 + w040 + w043 + spouseTax;
 
-  if (income > 100000 && taxPaid === 0) {
+  if (combinedIncome > 100000 && taxPaidTotal === 0) {
     warnings.push("הכנסה גבוהה אך מס שנוכה 0 – ייתכן שחסר נתון");
   }
-  if (income > 0 && taxPaid > income) {
-    warnings.push("מס שנוכה גבוה מההכנסה – ייתכן טעות בהזנה");
+  if (combinedIncome > 0 && taxPaidTotal > combinedIncome) {
+    warnings.push("מס שנוכה גבוה מההכנסה המשוקללת – ייתכן טעות בהזנה");
   }
   const taxYear = Number(data.taxYear) || 0;
   const currentYear = new Date().getFullYear();

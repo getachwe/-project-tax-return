@@ -5,10 +5,12 @@ import { UploadForm } from "./features/upload/UploadForm";
 import { ManualForm } from "./ManualForm";
 import { MissingUploadCompletion } from "./MissingUploadCompletion";
 import { ProgressSteps } from "./ProgressSteps";
+import { IntakeProfileForm } from "./IntakeProfileForm";
 
 export const Calculator: React.FC = () => {
   const { currentStep, taxData, pendingMissingUpload, setCalculatorStep } =
     useTaxCalculator();
+  const intakeDone = taxData.intakeCompleted === true;
   const navigate = useNavigate();
   const taxDataRef = useRef(taxData);
   taxDataRef.current = taxData;
@@ -33,11 +35,11 @@ export const Calculator: React.FC = () => {
     }
   }, [currentStep, navigate, setCalculatorStep]);
 
-  // שלב 1 – העלאה: שלושת השלבים מוצגים בתוך UploadForm (כמו בעיצוב)
+  // שלב 1 — קודם Intake (STEP 0), אחר כך העלאה / טיפים
   if (currentStep === 1) {
     return (
       <div className="w-full max-w-none px-0 py-0">
-        <UploadForm />
+        {!intakeDone ? <IntakeProfileForm /> : <UploadForm />}
       </div>
     );
   }

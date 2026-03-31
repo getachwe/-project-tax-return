@@ -3,6 +3,12 @@
   "framework": null,
   "buildCommand": "npm run build",
   "installCommand": "PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=1 npm install",
+  "functions": {
+    "server.js": {
+      "memory": 3008,
+      "maxDuration": 60
+    }
+  },
   "builds": [
     { "src": "package.json", "use": "@vercel/static-build", "config": { "distDir": "public" } },
     { "src": "server.js", "use": "@vercel/node" }

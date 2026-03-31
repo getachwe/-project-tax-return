@@ -36,7 +36,6 @@ chatbot_prompt.txt
 ai-chatbot-tax-system.prompt.md
 project/.bolt/prompt
 
-# Local planning notes
+# Local planning notes (optional clones next to tracked docs/planning/)
 FEATURES_PLAN1.md
-FEATURES_PLAN2.md
-FEATURES_PLAN3.md
+docs/planning/FEATURES_PLAN_LOCAL*.md

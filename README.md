@@ -33,11 +33,18 @@ Full-stack application for income tax refund estimation, Form 106 ingestion, PDF
 ├── backend/                 # Express app (local: npm start → port 4000)
 ├── server.js                # Production entry: createApp() + static SPA + catch-all
 ├── api/                     # Vercel catch-all handler for /api (if used in deployment)
-├── scripts/                 # e.g. copy-dist-to-public for CI
+├── docs/                    # All guides: deployment, troubleshooting, planning, prompts
+│   ├── prompts/             # LLM system prompts (loaded by backend when enabled)
+│   ├── deployment/
+│   ├── troubleshooting/
+│   └── planning/
+├── scripts/                 # copy-dist-to-public (CI) + dev/ ad-hoc test scripts
 ├── vercel.json
 ├── package.json             # Root install + `npm run build` for deploy bundle
 └── README.md
 ```
+
+**Documentation index:** [docs/README.md](docs/README.md).
 
 Files intentionally **not** tracked (see `.gitignore`): local prompt drafts, `.env`, build artifacts, `node_modules`.
 
@@ -139,5 +146,7 @@ Health check where enabled: `GET /health`.
 - Set all required environment variables in the Vercel dashboard.  
 - Ensure OAuth redirect URLs in Supabase match the deployed origin (e.g. `https://project-tax-return.vercel.app/auth/callback`).  
 - PDF generation prefers Puppeteer; the codebase falls back to PDFMake when Chromium is unavailable in the runtime.
+
+Longer checklists and platform-specific notes live under **[docs/deployment/](docs/deployment/)**.
 
 ---

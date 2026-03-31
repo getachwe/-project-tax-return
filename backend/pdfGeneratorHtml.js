@@ -1,6 +1,31 @@
-const puppeteer = require("puppeteer");
 const fs = require("fs");
 const path = require("path");
+
+/**
+ * מקומי: puppeteer עם כרומיום מ Bundled.
+ * Vercel: puppeteer-core + @sparticuz/chromium (אותו HTML כמו במקומי).
+ */
+async function launchBrowser() {
+  const onVercelRuntime =
+    typeof process.env.VERCEL_ENV === "string" &&
+    process.env.VERCEL_ENV.length > 0;
+  if (onVercelRuntime) {
+    const chromium = require("@sparticuz/chromium");
+    const puppeteerCore = require("puppeteer-core");
+    const executablePath = await chromium.executablePath();
+    return puppeteerCore.launch({
+      args: chromium.args,
+      defaultViewport: chromium.defaultViewport,
+      executablePath,
+      headless: chromium.headless,
+    });
+  }
+  const puppeteer = require("puppeteer");
+  return puppeteer.launch({
+    headless: true,
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+  });
+}
 
 // Helper: format numbers with commas
 function formatNumber(num) {
@@ -184,12 +209,35 @@ async function generateTaxPDFHtml(data, outputPath) {
             const display = full || fallback;
             return display ? `<tr><td>שם</td><td>${display}</td></tr>` : "";
           })()}
-          <tr><td>הכנסה שנתית</td><td>${formatNumber(data.income)} ₪</td></tr>
-          <tr><td>מס ששולם</td><td>${formatNumber(data.taxPaid)} ₪</td></tr>
-          <tr><td>נקודות זיכוי</td><td>${data.creditPoints.toFixed(2)}</td></tr>
-          <tr><td>שווי נקודת זיכוי</td><td>${formatNumber(
-            data.creditValue / data.creditPoints
+          <tr><td>הכנסה שנתית (מגיש/ה)</td><td>${formatNumber(data.income)} ₪</td></tr>
+          ${
+            data.filingStatus === "joint" &&
+            data.combinedIncome != null &&
+            Number(data.spouseIncome) > 0
+              ? `<tr><td>הכנסת בן/בת זוג</td><td>${formatNumber(
+                  data.spouseIncome
+                )} ₪</td></tr>
+              <tr><td>סה״כ הכנסה לחישוב (גילוי משותף)</td><td>${formatNumber(
+                data.combinedIncome
+              )} ₪</td></tr>`
+              : ""
+          }
+          <tr><td>מס שנוכה (שדה 042)</td><td>${formatNumber(data.taxPaid)} ₪</td></tr>
+          ${
+            (Number(data.taxWithheld040) || 0) > 0
+              ? `<tr><td>ניכוי מס (040)</td><td>${formatNumber(data.taxWithheld040)} ₪</td></tr>`
+              : ""
+          }
+          ${
+            (Number(data.taxWithheld043) || 0) > 0
+              ? `<tr><td>ניכוי מס (043)</td><td>${formatNumber(data.taxWithheld043)} ₪</td></tr>`
+              : ""
+          }
+          <tr><td>סה״כ מס שנוכה לחישוב</td><td>${formatNumber(
+            data.taxPaidEffective != null ? data.taxPaidEffective : data.taxPaid
           )} ₪</td></tr>
+          <tr><td>נקודות זיכוי</td><td>${creditPointsDisplay(data)}</td></tr>
+          <tr><td>שווי נקודת זיכוי</td><td>${formatNumber(perPoint)} ₪</td></tr>
           <tr><td>סך הכל זיכוי ממס</td><td>${formatNumber(
             data.creditValue
           )} ₪</td></tr>
@@ -222,21 +270,20 @@ async function generateTaxPDFHtml(data, outputPath) {
   </html>
   `;
 
-  // Launch Puppeteer and generate PDF
-  const browser = await puppeteer.launch({
-    headless: "new",
-    args: ["--no-sandbox"],
-  });
-  const page = await browser.newPage();
-  await page.setContent(html, { waitUntil: "load", timeout: 30_000 });
-  await page.pdf({
-    path: outputPath,
-    format: "A4",
-    printBackground: true,
-    margin: { top: 20, right: 20, bottom: 20, left: 20 },
-    displayHeaderFooter: false,
-  });
-  await browser.close();
+  const browser = await launchBrowser();
+  try {
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: "load", timeout: 60_000 });
+    await page.pdf({
+      path: outputPath,
+      format: "A4",
+      printBackground: true,
+      margin: { top: 20, right: 20, bottom: 20, left: 20 },
+      displayHeaderFooter: false,
+    });
+  } finally {
+    await browser.close();
+  }
 }
 
 module.exports = { generateTaxPDFHtml };
